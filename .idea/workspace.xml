@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="34581d93-9a3c-4833-877d-bebc6674857c" name="更改" comment="Init">
+      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/compiler23182603.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Compiler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Error/ErrorHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/OutputHelper/OutputHelper.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/config.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/Lexer.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/Parser.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/Token.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/TokenStream.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/CompUnit.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/Node.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/SyntaxType.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/block/Block.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/block/BlockItem.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/decl/ConstDecl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/decl/Decl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/decl/VarDecl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/def/ConstDef.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/def/VarDef.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/Cond.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/ConstExp.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/Exp.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/LVal.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/PrimaryExp.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/UnaryExp.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/UnaryOp.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/recursion/AddExp.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/recursion/EqExp.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/recursion/LAndExp.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/recursion/LOrExp.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/recursion/MulExp.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/exp/recursion/RelExp.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/func/FuncDef.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/func/FuncFParam.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/func/FuncFParams.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/func/FuncRParams.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/func/MainFuncDef.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/stmt/ForStmt.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/stmt/Stmt.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/token/BType.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/token/FuncType.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/token/Ident.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/token/IntConst.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/token/StringConst.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/value/ConstInitVal.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/value/InitVal.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/frontend/ast/value/Number.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Ir/Const/IrConstString.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Ir/Instr/Instr.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Ir/IrModule.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Ir/IrType/IrType.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Ir/IrUse/IrUse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Ir/IrUse/IrUser.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Ir/IrValue/IrFunc.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Ir/IrValue/IrGlobalValue.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Ir/IrValue/IrValue.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/MidEnd.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Symbol/FuncSymbol.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Symbol/Symbol.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Symbol/SymbolManager.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Symbol/SymbolTable.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/midend/Symbol/ValueSymbol.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/testfile.txt" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="367AkGvrQLoKiD8EdcgF76SLnvB" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="autoscrollToSource" value="true" />
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="应用程序级" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="34581d93-9a3c-4833-877d-bebc6674857c" name="更改" comment="" />
+      <created>1764347382119</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1764347382119</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="master" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Init" />
+    <option name="LAST_COMMIT_MESSAGE" value="Init" />
+  </component>
+</project>
