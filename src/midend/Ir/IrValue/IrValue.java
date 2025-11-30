@@ -15,4 +15,11 @@ public class IrValue {
         this.irName = irName;
         this.useList = new ArrayList<>();
     }
+
+    public static class IrGlobalValue {
+
+    }
+
+    public static class IrFunc {
+    }
 }

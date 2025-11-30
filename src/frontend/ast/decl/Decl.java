@@ -9,6 +9,7 @@ import static frontend.TokenStream.*;
 
 public class Decl extends Node{
     //Decl → ConstDecl | VarDecl
+    private  boolean isConst=false;
     private int Utype;
     private ConstDecl constDecl0=null;
     //---------------------------------------------
@@ -43,6 +44,7 @@ public class Decl extends Node{
             ConstDecl constDecl=new ConstDecl();
             constDecl.parse();
             this.constDecl0=constDecl;
+            this.isConst=true;
         }
         //VarDecl
         else{
