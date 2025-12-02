@@ -14,7 +14,7 @@ public class IrModule {
     // 全局变量
     private final ArrayList<IrValue.IrGlobalValue> globalValues;
     // 一切运行对象皆为function，包括main
-    private final ArrayList<IrValue.IrFunc> funcs;
+    private final ArrayList<IrValue.IrFunction> funcs;
     public IrModule() {
         this.declares = new ArrayList<>();
         this.stringConstMap = new HashMap<>();
@@ -25,5 +25,17 @@ public class IrModule {
         this.declares.add("declare void @putch(i32) ");
         this.declares.add("declare void @putstr(i8*)");
         this.declares.add("declare void @putint(i32)");
+    }
+    public void Check() {
+        for (IrValue.IrFunction irFunction : this.funcs) {
+            irFunction.CheckNoEmptyBlock();
+        }
+    }
+    public void AddIrGlobalValue(IrValue.IrGlobalValue globalValue) {
+        this.globalValues.add(globalValue);
+    }
+
+    public void AddIrFunction(IrValue.IrFunction function) {
+        this.funcs.add(function);
     }
 }
