@@ -5,12 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="34581d93-9a3c-4833-877d-bebc6674857c" name="更改" comment="Init">
-      <change afterPath="$PROJECT_DIR$/src/midend/Ir/Const/IrConst.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/midend/Ir/IrFactory.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/midend/Ir/Const/IrConstString.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/midend/Ir/Const/IrConstString.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/midend/Ir/Const/IrConst.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/midend/Ir/Const/IrConst.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/midend/Ir/Const/IrConstString.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/midend/Ir/IrFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/midend/Ir/IrFactory.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/midend/Ir/IrModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/midend/Ir/IrModule.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/midend/Ir/IrValue/IrValue.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/midend/Ir/IrValue/IrValue.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -41,7 +40,7 @@
   "keyToString": {
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "last_opened_file_path": "D:/compiler/示例代码"
+    "last_opened_file_path": "D:/compiler/compiler23182603"
   }
 }]]></component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="应用程序级" UseSingleDictionary="true" transferred="true" />
@@ -74,7 +73,14 @@
       <option name="project" value="LOCAL" />
       <updated>1764509007680</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Init">
+      <created>1764675525264</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1764675525264</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">

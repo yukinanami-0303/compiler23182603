@@ -1,7 +1,6 @@
 package midend.Ir;
 
 import midend.Ir.Const.IrConst;
-import midend.Ir.Const.IrConstString;
 import midend.Ir.Instr.Instr;
 import midend.Ir.IrType.IrType;
 import midend.Ir.IrValue.IrValue;
@@ -81,7 +80,7 @@ public class IrFactory {
         return globalValue;
     }
 
-    public static IrConstString GetNewIrConstString(String string) {
+    public static IrConst.IrConstString GetNewIrConstString(String string) {
         return currentModule.GetNewIrConstString(string);
     }
 

@@ -1,6 +1,6 @@
 package midend.Ir;
 
-import midend.Ir.Const.IrConstString;
+import midend.Ir.Const.IrConst;
 import midend.Ir.IrValue.IrValue;
 
 import java.util.ArrayList;
@@ -10,7 +10,7 @@ public class IrModule {
     // 库函数声明
     private final ArrayList<String> declares;
     // 字符串
-    private final HashMap<String, IrConstString> stringConstMap;
+    private final HashMap<String, IrConst.IrConstString> stringConstMap;
     // 全局变量
     private final ArrayList<IrValue.IrGlobalValue> globalValues;
     // 一切运行对象皆为function，包括main
