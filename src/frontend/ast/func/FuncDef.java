@@ -7,6 +7,8 @@ import frontend.ast.token.FuncType;
 import frontend.ast.token.Ident;
 import frontend.ast.block.Block;
 import frontend.ast.token.FuncType;
+import midend.Ir.IrBasicBlock;
+import midend.Ir.IrBuilder;
 import midend.Symbol.FuncSymbol;
 import midend.Symbol.SymbolManager;
 
@@ -98,26 +100,47 @@ public class FuncDef extends Node {
             this.symbol=new FuncSymbol(symbolName,"IntFunc");
             SymbolManager.AddSymbol(this.symbol, this.ident.GetTokenLineNumber());
             //因为函数形参表的作用域是函数名作用域的子作用域
+
+            String funcName = ident.GetTokenValue();          // 函数名
+            // IR：进入一个新函数（createFunction + entry 基本块）
+            IrBuilder.enterFunction("i32", funcName);
+
             SymbolManager.CreateSonSymbolTable();//所以创建子符号表并进入子符号表
             if(this.funcFParams!=null){//有参数
                 this.funcFParams.visit();
                 this.symbol.SetFormalParamList(this.funcFParams.GetFormalParamList());
             }
 
+
+
             SymbolManager.EnterFunc("int");
+
+
+
             block.visit();
+
+
             SymbolManager.LeaveFunc();
 
             if(!this.block.haveReturnStmt()){//检查return的缺失
                 addError(this.block.GetRbraceLineNumber(),"g");
             }
             SymbolManager.GoToFatherSymbolTable();
+            // IR：离开当前函数
+            IrBuilder.leaveFunction();
         }
 
 
         else{//void类型函数
             this.symbol=new FuncSymbol(symbolName,"VoidFunc");
             SymbolManager.AddSymbol(this.symbol, this.ident.GetTokenLineNumber());
+
+
+            String funcName = ident.GetTokenValue();          // 函数名
+            // IR：进入一个新函数（createFunction + entry 基本块）
+            IrBuilder.enterFunction("void", funcName);
+
+
             //因为函数形参表的作用域是函数名作用域的子作用域
             SymbolManager.CreateSonSymbolTable();//所以创建子符号表并进入子符号表
             if(this.funcFParams!=null){//有参数
@@ -125,9 +148,25 @@ public class FuncDef extends Node {
                 this.symbol.SetFormalParamList(this.funcFParams.GetFormalParamList());
             }
             SymbolManager.EnterFunc("void");
+
+
+
             block.visit();
+
+
+
+
             SymbolManager.LeaveFunc();
             SymbolManager.GoToFatherSymbolTable();
+            // 如果最后一个语句不是 return，就补一条 ret void
+            if (!this.block.haveReturnStmt()) {
+                IrBasicBlock cur = IrBuilder.getCurrentBlock();
+                if (cur != null) {
+                    cur.addInstruction("ret void");
+                }
+            }
+            // IR：离开当前函数
+            IrBuilder.leaveFunction();
         }
     }
 

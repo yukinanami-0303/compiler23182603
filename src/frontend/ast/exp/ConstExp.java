@@ -31,6 +31,14 @@ public class ConstExp extends Node {
         addExp.visit();
     }
 
+    // ConstExp → AddExp
+    // 仅用于编译期常量求值（如 ConstInitVal、全局初始化等）
+    public int GetValue() {
+        if (addExp == null) {
+            return 0;
+        }
+        return addExp.GetValue();
+    }
 
     public ConstExp(){
         super(SyntaxType.CONST_EXP);

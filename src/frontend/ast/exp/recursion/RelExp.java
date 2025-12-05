@@ -3,6 +3,8 @@ import frontend.Parser;
 import frontend.Token;
 import frontend.ast.Node;
 import frontend.ast.SyntaxType;
+import midend.Ir.IrBasicBlock;
+import midend.Ir.IrFactory;
 
 import java.io.IOException;
 
@@ -130,6 +132,41 @@ public class RelExp extends Node{
     }
 
 
+
+    /**
+     * 生成关系表达式的 IR 值。
+     * 有比较运算符时返回 i32（0 或 1），否则返回算术表达式的值。
+     * RelExp → AddExp | RelExp ('<' | '>' | '<=' | '>=') AddExp
+     */
+    public String generateIr(IrBasicBlock curBlock) {
+        if (this.Utype == 0) {
+            // RelExp -> AddExp
+            return addExp0.generateIr(curBlock);
+        } else {
+            // RelExp -> RelExp op AddExp
+            String left = relExp1.generateIr(curBlock);
+            String right = addExp1.generateIr(curBlock);
+
+            IrFactory factory = IrFactory.getInstance();
+            String cmp = factory.newTemp();
+            String op;
+            if (lssToken1 != null) {
+                op = "slt";
+            } else if (greToken1 != null) {
+                op = "sgt";
+            } else if (leqToken1 != null) {
+                op = "sle";
+            } else {
+                // geqToken1 != null
+                op = "sge";
+            }
+
+            curBlock.addInstruction(cmp + " = icmp " + op + " i32 " + left + ", " + right);
+            String zext = factory.newTemp();
+            curBlock.addInstruction(zext + " = zext i1 " + cmp + " to i32");
+            return zext;
+        }
+    }
 
     public RelExp(){
         super(SyntaxType.REL_EXP);

@@ -100,26 +100,7 @@ public class ConstInitVal extends Node{
     }
 
 
-    //ConstInitVal → ConstExp | '{' [ ConstExp { ',' ConstExp } ] '}'
-    /*
-    public ArrayList<Integer> GetInitValueList() {
-        ArrayList<Integer> initValueList = new ArrayList<>();
-        if(constExp0!=null){
-            initValueList.add(constExp0.GetValue());
-        }
-        else{
-            if(constExp1!=null) {
-                initValueList.add(constExp1.GetValue());
-                if (constExps1 != null) {
-                    for (int i = 0; i < constExps1.size(); i++) {
-                        initValueList.add(constExps1.get(i).GetValue());
-                    }
-                }
-            }
-        }
-        return initValueList;
-    }
-     */
+
 
 
     @Override
@@ -137,6 +118,25 @@ public class ConstInitVal extends Node{
                 }
             }
         }
+    }
+    // ConstInitVal → ConstExp | '{' [ ConstExp { ',' ConstExp } ] '}'
+    public ArrayList<Integer> GetInitValueList() {
+        ArrayList<Integer> initValueList = new ArrayList<>();
+        if (constExp0 != null) {
+            // 标量常量初始化：ConstInitVal → ConstExp
+            initValueList.add(constExp0.GetValue());
+        } else {
+            // 数组常量初始化：ConstInitVal → '{' [ ConstExp { ',' ConstExp } ] '}'
+            if (constExp1 != null) {
+                initValueList.add(constExp1.GetValue());
+                if (constExps1 != null) {
+                    for (int i = 0; i < constExps1.size(); i++) {
+                        initValueList.add(constExps1.get(i).GetValue());
+                    }
+                }
+            }
+        }
+        return initValueList;
     }
 
     public ConstInitVal(){

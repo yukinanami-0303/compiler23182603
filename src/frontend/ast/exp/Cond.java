@@ -3,6 +3,7 @@ import frontend.Parser;
 import frontend.ast.Node;
 import frontend.ast.SyntaxType;
 import frontend.ast.exp.recursion.LOrExp;
+import midend.Ir.IrBasicBlock;
 
 import java.io.IOException;
 
@@ -33,6 +34,12 @@ public class Cond extends Node{
     @Override
     public void visit(){
         lOrExp.visit();
+    }
+    /**
+     * 生成条件表达式的 IR 值，返回 i32（0 或 1）。
+     */
+    public String generateIr(IrBasicBlock curBlock) {
+        return lOrExp.generateIr(curBlock);
     }
 
 

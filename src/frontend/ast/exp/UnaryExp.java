@@ -6,6 +6,8 @@ import frontend.ast.SyntaxType;
 import frontend.ast.func.FuncFParams;
 import frontend.ast.func.FuncRParams;
 import frontend.ast.token.Ident;
+import midend.Ir.IrBasicBlock;
+import midend.Ir.IrFactory;
 import midend.Symbol.FuncSymbol;
 import midend.Symbol.Symbol;
 import midend.Symbol.SymbolManager;
@@ -222,6 +224,114 @@ public class UnaryExp extends Node {
     }
 
 
+    public String generateIr(IrBasicBlock curBlock) {
+        // 1) UnaryExp → PrimaryExp
+        if (primaryExp0 != null) {
+            return primaryExp0.generateIr(curBlock);
+        }
+
+// 2) UnaryExp → Ident '(' [FuncRParams] ')'
+        if (ident1 != null) {
+            String funcName = ident1.GetTokenValue();
+
+            // 特殊内建：getint() —— 无参、返回 i32，且不会走下面通用逻辑
+            if ("getint".equals(funcName)) {
+                String res = IrFactory.getInstance().newTemp();
+                curBlock.addInstruction(res + " = call i32 @getint()");
+                return res;
+            }
+
+            IrFactory factory = IrFactory.getInstance();
+            String retType;
+
+            // 内建库函数的返回类型在这里强制指定
+            if ("putint".equals(funcName) || "putch".equals(funcName) || "putstr".equals(funcName)) {
+                retType = "void";
+            } else {
+                // 其它（用户自定义）函数，从工厂里查；查不到就默认 i32
+                retType = factory.getFuncRetType(funcName);  // "i32" 或 "void"
+            }
+
+            // 生成实参表达式
+            java.util.List<String> argVals = new java.util.ArrayList<>();
+            if (funcRParams1 != null) {
+                argVals = funcRParams1.generateArgsIr(curBlock);
+            }
+
+            // 把实参拼成 "i32 v1, i32 v2, ..."
+            StringBuilder argsSb = new StringBuilder();
+            for (int i = 0; i < argVals.size(); i++) {
+                if (i > 0) {
+                    argsSb.append(", ");
+                }
+                argsSb.append("i32 ").append(argVals.get(i));
+            }
+            String argsStr = argsSb.toString();
+
+            // 按返回类型生成不同的 call
+            if ("void".equals(retType)) {
+                curBlock.addInstruction("call void @" + funcName + "(" + argsStr + ")");
+                // 作为表达式时，无值可用，返回一个占位立即数 "0"
+                return "0";
+            } else {
+                String res = factory.newTemp();
+                curBlock.addInstruction(res + " = call i32 @" + funcName + "(" + argsStr + ")");
+                return res;
+            }
+        }
+
+
+        // 3) UnaryExp → UnaryOp UnaryExp（一元 + - !）
+        if (unaryOp2 != null && unaryExp2 != null) {
+            String v = unaryExp2.generateIr(curBlock);
+            String op = unaryOp2.GetUnaryOp();  // "+", "-", "!"
+            if (op.equals("+")) {
+                return v;
+            } else if (op.equals("-")) {
+                String res = IrFactory.getInstance().newTemp();
+                curBlock.addInstruction(res + " = sub i32 0, " + v);
+                return res;
+            } else { // "!"
+                String tmp = IrFactory.getInstance().newTemp();
+                String res = IrFactory.getInstance().newTemp();
+                curBlock.addInstruction(tmp + " = icmp eq i32 " + v + ", 0");
+                curBlock.addInstruction(res + " = zext i1 " + tmp + " to i32");
+                return res;
+            }
+        }
+
+        // 理论上不会走到这里
+        return "0";
+    }
+
+
+
+
+
+    // UnaryExp → PrimaryExp | Ident '(' [FuncRParams] ')' | UnaryOp UnaryExp
+// 这里只处理 PrimaryExp 和 UnaryOp UnaryExp，函数调用不允许出现在 ConstExp 中
+    public int GetValue() {
+        // UnaryExp → PrimaryExp
+        if (primaryExp0 != null) {
+            return primaryExp0.GetValue();
+        }
+
+        // UnaryExp → UnaryOp UnaryExp
+        if (unaryOp2 != null && unaryExp2 != null) {
+            int v = unaryExp2.GetValue();
+            String op = unaryOp2.GetUnaryOp();  // "+", "-", "!"
+            if (op.equals("+")) {
+                return v;
+            } else if (op.equals("-")) {
+                return -v;
+            } else { // "!"
+                return (v == 0) ? 1 : 0;
+            }
+        }
+
+        // Ident '(' ... ')' 作为常量是非法的，这里防御性返回 0
+        return 0;
+    }
 
     public UnaryExp(){
         super(SyntaxType.UNARY_EXP);

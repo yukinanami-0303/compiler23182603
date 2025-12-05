@@ -3,6 +3,8 @@ import frontend.Parser;
 import frontend.Token;
 import frontend.ast.Node;
 import frontend.ast.SyntaxType;
+import midend.Ir.IrBasicBlock;
+import midend.Ir.IrFactory;
 
 import java.io.IOException;
 
@@ -107,6 +109,30 @@ public class EqExp extends Node{
         }
     }
 
+    /**
+     * 生成相等/不等表达式的 IR 值。
+     * 有 '==' / '!=' 时返回 i32（0 或 1），否则返回 RelExp 的值。
+     * EqExp → RelExp | EqExp ('==' | '!=') RelExp
+     */
+    public String generateIr(IrBasicBlock curBlock) {
+        if (this.Utype == 0) {
+            // EqExp -> RelExp
+            return relExp0.generateIr(curBlock);
+        } else {
+            // EqExp -> EqExp ('==' | '!=') RelExp
+            String left = eqExp1.generateIr(curBlock);
+            String right = relExp1.generateIr(curBlock);
+
+            IrFactory factory = IrFactory.getInstance();
+            String cmp = factory.newTemp();
+            String cond = (eqlToken1 != null) ? "eq" : "ne";
+
+            curBlock.addInstruction(cmp + " = icmp " + cond + " i32 " + left + ", " + right);
+            String zext = factory.newTemp();
+            curBlock.addInstruction(zext + " = zext i1 " + cmp + " to i32");
+            return zext;
+        }
+    }
 
 
     public EqExp(){

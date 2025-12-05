@@ -5,6 +5,9 @@ import frontend.ast.Node;
 import frontend.ast.SyntaxType;
 import frontend.ast.token.BType;
 import frontend.ast.token.Ident;
+import midend.Ir.IrBasicBlock;
+import midend.Ir.IrBuilder;
+import midend.Ir.IrFunction;
 import midend.Symbol.FuncSymbol;
 import midend.Symbol.Symbol;
 import midend.Symbol.SymbolManager;
@@ -72,14 +75,37 @@ public class FuncFParam extends Node{
     //FuncFParam → BType Ident ['[' ']']
     @Override
     public void visit(){
-        String symbolName=ident.GetTokenValue();
-        if(this.lbrackToken!=null){//数组
-            this.symbol=new ValueSymbol(symbolName,"IntArray");
+        String symbolName = ident.GetTokenValue();
+        ValueSymbol vSym;
+
+        if (this.lbrackToken != null) { // 数组形参
+            vSym = new ValueSymbol(symbolName, "IntArray");
+            vSym.SetIsArrayParam(true);
+        } else {                        // 普通 int 形参
+            vSym = new ValueSymbol(symbolName, "Int");
         }
-        else{//变量
-            this.symbol=new ValueSymbol(symbolName,"Int");
-        }
+        this.symbol = vSym;
         SymbolManager.AddSymbol(this.symbol, ident.GetTokenLineNumber());
+
+
+        // ===== IR: 形参加入当前函数 =====
+        IrFunction func = IrBuilder.getCurrentFunction();
+        IrBasicBlock entry = IrBuilder.getCurrentBlock();
+        if (func != null && entry != null) {
+            String irParamName = "%arg." + symbolName;
+            vSym.SetIrParamName(irParamName);
+
+            if (this.lbrackToken != null) {
+                // 数组形参：参数类型 i32*
+                func.addParam("i32*", irParamName);
+                // 不再对 a 做 alloca i32，后面 LVal 直接用这个指针做 GEP
+            } else {
+                // 普通 int 形参
+                func.addParam("i32", irParamName);
+                entry.addInstruction("%" + symbolName + " = alloca i32");
+                entry.addInstruction("store i32 " + irParamName + ", i32* %" + symbolName);
+            }
+        }
     }
     public Symbol GetSymbol(){
         return this.symbol;

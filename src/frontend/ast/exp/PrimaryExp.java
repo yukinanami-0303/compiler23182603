@@ -5,6 +5,8 @@ import frontend.ast.Node;
 import frontend.ast.SyntaxType;
 import frontend.ast.token.Ident;
 import frontend.ast.value.Number;
+import midend.Ir.IrBasicBlock;
+
 import java.io.IOException;
 
 import static Error.ErrorHandler.addError;
@@ -107,7 +109,43 @@ public class PrimaryExp extends Node {
         }
     }
 
+    /**
+     * 生成 PrimaryExp 的 IR 结果：
+     *   '(' Exp ')'  → 借用内部 Exp 的结果
+     *   LVal         → 借用 LVal.generateIr
+     *   Number       → 字面量
+     */
+    public String generateIr(IrBasicBlock curBlock) {
+        if (this.exp0 != null) {
+            return this.exp0.generateIr(curBlock);
+        }
+        else if (this.lVal1 != null) {
+            return this.lVal1.generateIr(curBlock);
+        }
+        else if (this.number2 != null) {
+            return this.number2.generateIr(curBlock);
+        }
+        else {
+            return "0";
+        }
+    }
 
+    // PrimaryExp → '(' Exp ')' | LVal | Number
+    // 计算 PrimaryExp 的常量值
+    public int GetValue() {
+        if (exp0 != null) {
+            // '(' Exp ')'
+            return exp0.GetValue();
+        } else if (lVal1 != null) {
+            // LVal：要求是常量（如 const int a = 0;）
+            return lVal1.GetConstValue();
+        } else if (number2 != null) {
+            // Number → IntConst
+            return number2.GetValue();
+        } else {
+            return 0;
+        }
+    }
 
     public PrimaryExp(){
         super(SyntaxType.PRIMARY_EXP);

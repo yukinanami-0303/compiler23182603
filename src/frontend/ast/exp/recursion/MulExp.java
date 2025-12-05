@@ -5,6 +5,8 @@ import frontend.ast.Node;
 import frontend.ast.SyntaxType;
 import frontend.ast.exp.UnaryExp;
 import frontend.ast.token.Ident;
+import midend.Ir.IrBasicBlock;
+import midend.Ir.IrFactory;
 
 import java.io.IOException;
 
@@ -121,9 +123,53 @@ public class MulExp extends Node{
     }
 
 
+    public String generateIr(IrBasicBlock curBlock) {
+        if (this.Utype == 0) {
+            // MulExp -> UnaryExp
+            return unaryExp0.generateIr(curBlock);
+        } else {
+            // MulExp -> MulExp ('*' | '/' | '%') UnaryExp
+            String left = mulExp1.generateIr(curBlock);
+            String right = unaryExp1.generateIr(curBlock);
+
+            String res = IrFactory.getInstance().newTemp();
+            String op;
+            if (multToken1 != null) {
+                op = "mul";
+            } else if (divToken1 != null) {
+                op = "sdiv";  // 有符号除法
+            } else {
+                op = "srem";  // 有符号取模
+            }
+
+            curBlock.addInstruction(res + " = " + op + " i32 " + left + ", " + right);
+            return res;
+        }
+    }
 
 
+    // MulExp → UnaryExp | MulExp ('*' | '/' | '%') UnaryExp
+    // 计算当前乘除模表达式的整数值
+    public int GetValue() {
+        if (this.Utype == 0) {
+            // 只有一个 UnaryExp
+            return unaryExp0.GetValue();
+        } else {
+            // MulExp ('*' | '/' | '%') UnaryExp
+            int left = mulExp1.GetValue();
+            int right = unaryExp1.GetValue();
 
+            if (multToken1 != null) {
+                return left * right;
+            } else if (divToken1 != null) {
+                // SysY 是 int 类型，向 0 取整，直接用 Java 的 / 即可
+                return left / right;
+            } else {
+                // '%'
+                return left % right;
+            }
+        }
+    }
 
     public MulExp(){
         super(SyntaxType.MUL_EXP);

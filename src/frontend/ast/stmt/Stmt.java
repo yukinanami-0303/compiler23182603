@@ -9,6 +9,10 @@ import frontend.ast.exp.Exp;
 import frontend.ast.exp.LVal;
 import frontend.ast.func.FuncFParam;
 import frontend.ast.token.StringConst;
+import midend.Ir.IrBasicBlock;
+import midend.Ir.IrBuilder;
+import midend.Ir.IrFactory;
+import midend.Ir.IrFunction;
 import midend.Symbol.Symbol;
 import midend.Symbol.SymbolManager;
 
@@ -587,11 +591,26 @@ public class Stmt extends Node{
                 }
             }
             this.exp0.visit();
+            // ===== IR：赋值语句 LVal = Exp; =====
+            IrBasicBlock block = IrBuilder.getCurrentBlock();
+            if (block != null) {
+                // 右侧表达式求值
+                String value = this.exp0.generateIr(block);
+                // 左值地址
+                String addr = this.lVal0.generateAddr(block);
+                // store
+                block.addInstruction("store i32 " + value + ", i32* " + addr);
+            }
         }
         //[Exp] ';'       1
         else if(this.Utype==1){
             if(this.exp1!=null){
                 this.exp1.visit();
+                IrBasicBlock block = IrBuilder.getCurrentBlock();
+                if (block != null) {
+                    // 这里不关心返回值，只是为了执行它
+                    this.exp1.generateIr(block);
+                }
             }
         }
         //Block       2
@@ -600,41 +619,196 @@ public class Stmt extends Node{
             this.block2.visit();
             SymbolManager.GoToFatherSymbolTable();
         }
+
         //'if' '(' Cond ')' Stmt [ 'else' Stmt ]      3
         else if(this.Utype==3){
             this.cond3.visit();
-            this.stmt31.visit();
-            if(this.stmt32!=null){
-                this.stmt32.visit();
+            // ===== IR：if-else 语句 =====
+            IrBasicBlock curBlock = IrBuilder.getCurrentBlock();
+            IrFunction curFunc = IrBuilder.getCurrentFunction();
+
+            // 这里原来多调用了一次 then/else 的 visit，删掉：
+            // this.stmt31.visit();
+            // if(this.stmt32!=null){
+            //     this.stmt32.visit();
+            // }
+
+            IrFactory factory = IrFactory.getInstance();
+
+            // 1. 生成条件表达式的值（i32）
+            String condVal = this.cond3.generateIr(curBlock);
+
+            // 2. 把 condVal 转成 i1，用于 br 指令
+            String condBool = factory.newTemp();
+            curBlock.addInstruction(condBool + " = icmp ne i32 " + condVal + ", 0");
+
+            // 3. 创建基本块
+            IrBasicBlock thenBlock = factory.createBasicBlock(curFunc, "if_then");
+            IrBasicBlock endBlock = factory.createBasicBlock(curFunc, "if_end");
+            IrBasicBlock elseBlock = null;
+
+            // 4. 条件跳转
+            if (this.stmt32 != null) {
+                elseBlock = factory.createBasicBlock(curFunc, "if_else");
+                curBlock.addInstruction("br i1 " + condBool
+                        + ", label %" + thenBlock.getLabel()
+                        + ", label %" + elseBlock.getLabel());
+            } else {
+                curBlock.addInstruction("br i1 " + condBool
+                        + ", label %" + thenBlock.getLabel()
+                        + ", label %" + endBlock.getLabel());
             }
+
+            // 5. then 分支
+            IrBuilder.setCurrentBlock(thenBlock);
+            this.stmt31.visit();
+            if (!blockEndsWithTerminator(thenBlock)) {
+                thenBlock.addInstruction("br label %" + endBlock.getLabel());
+            }
+
+            // 6. else 分支（如果有）
+            if (this.stmt32 != null) {
+                IrBuilder.setCurrentBlock(elseBlock);
+                this.stmt32.visit();
+                if (!blockEndsWithTerminator(elseBlock)) {
+                    elseBlock.addInstruction("br label %" + endBlock.getLabel());
+                }
+            }
+
+            // 7. 合流到 endBlock
+            IrBuilder.setCurrentBlock(endBlock);
         }
+
         //'for' '(' [ForStmt] ';' [Cond] ';' [ForStmt] ')' Stmt       4
         else if(this.Utype==4){
-            if(this.forStmt41!=null){
+            // 先做语义检查：初始化、条件、步进部分
+            if (this.forStmt41 != null) {
                 this.forStmt41.visit();
             }
-            if(this.cond4!=null){
+            if (this.cond4 != null) {
                 this.cond4.visit();
             }
-            if(this.forStmt42!=null){
+            if (this.forStmt42 != null) {
                 this.forStmt42.visit();
             }
-            SymbolManager.EnterForBlock();
-            this.stmt4.visit();
-            SymbolManager.LeaveForBlock();
+
+            IrBasicBlock curBlock = IrBuilder.getCurrentBlock();
+            IrFunction   curFunc  = IrBuilder.getCurrentFunction();
+
+            // 如果当前不在函数里，只做语义分析
+            if (curBlock == null || curFunc == null) {
+                SymbolManager.EnterForBlock();
+                this.stmt4.visit();
+                SymbolManager.LeaveForBlock();
+            } else {
+                IrFactory factory = IrFactory.getInstance();
+
+                // 1. for 初始化：ForStmt1 在当前块中执行
+                if (this.forStmt41 != null) {
+                    this.forStmt41.generateIr(curBlock);
+                }
+
+                // 2. 创建 for 的各个基本块
+                IrBasicBlock condBlock = factory.createBasicBlock(curFunc, "for_cond");
+                IrBasicBlock bodyBlock = factory.createBasicBlock(curFunc, "for_body");
+                IrBasicBlock stepBlock = null;
+                if (this.forStmt42 != null) {
+                    stepBlock = factory.createBasicBlock(curFunc, "for_step");
+                }
+                IrBasicBlock endBlock  = factory.createBasicBlock(curFunc, "for_end");
+
+                // 3. 从当前块跳到 cond 块
+                curBlock.addInstruction("br label %" + condBlock.getLabel());
+
+                // 4. cond 块：判断循环是否继续
+                IrBuilder.setCurrentBlock(condBlock);
+                if (this.cond4 != null) {
+                    // Cond → LOrExp，返回 i32（0/1）
+                    String condVal  = this.cond4.generateIr(condBlock);
+                    String condBool = factory.newTemp();
+                    condBlock.addInstruction(condBool + " = icmp ne i32 " + condVal + ", 0");
+                    condBlock.addInstruction("br i1 " + condBool
+                            + ", label %" + bodyBlock.getLabel()
+                            + ", label %" + endBlock.getLabel());
+                } else {
+                    // for(;;) 无条件循环：从 cond 直接跳 body
+                    condBlock.addInstruction("br label %" + bodyBlock.getLabel());
+                }
+
+                // 5. 注册本层循环的 break / continue 目标
+                IrBasicBlock continueTarget = (stepBlock != null) ? stepBlock : condBlock;
+                IrBuilder.pushLoop(endBlock, continueTarget);
+                SymbolManager.EnterForBlock();
+
+                // 6. 循环体 body
+                IrBuilder.setCurrentBlock(bodyBlock);
+                this.stmt4.visit();
+
+                IrBasicBlock lastBodyBlock = IrBuilder.getCurrentBlock();
+
+                if (!blockEndsWithTerminator(lastBodyBlock)) {
+                    IrBasicBlock afterBody = (stepBlock != null) ? stepBlock : condBlock;
+                    lastBodyBlock.addInstruction("br label %" + afterBody.getLabel());
+                }
+
+
+                SymbolManager.LeaveForBlock();
+                IrBuilder.popLoop();
+
+                // 7. 步进块 stepBlock：ForStmt2 执行完再回 cond
+                if (stepBlock != null) {
+                    IrBuilder.setCurrentBlock(stepBlock);
+                    this.forStmt42.generateIr(stepBlock);
+
+                    IrBasicBlock lastStepBlock = IrBuilder.getCurrentBlock();
+                    if (!blockEndsWithTerminator(lastStepBlock)) {
+                        lastStepBlock.addInstruction("br label %" + condBlock.getLabel());
+                    }
+                }
+
+
+                // 8. 循环结束后的代码从 endBlock 开始
+                IrBuilder.setCurrentBlock(endBlock);
+            }
         }
+
         //'break' ';'     5 m
         else if(this.Utype==5){
-            if(SymbolManager.NotInForBlock()){
-                addError(this.breakToken5.getLineNumber(),"m");
+            if (SymbolManager.NotInForBlock()) {
+                // 不在 for 中使用 break —— 语义错误 m
+                addError(this.breakToken5.getLineNumber(), "m");
+            } else {
+                // ===== IR：生成 break 的跳转 =====
+                IrBasicBlock block = IrBuilder.getCurrentBlock();
+                IrBasicBlock breakTarget = IrBuilder.getCurrentBreakTarget();
+                if (block != null && breakTarget != null) {
+                    // 直接跳转到当前循环的 break 目标基本块
+                    block.addInstruction("br label %" + breakTarget.getLabel());
+                } else if (block != null) {
+                    // TODO: for 循环的 IR 尚未实现，这里暂时不生成 break 的跳转 IR
+                    // 后续在 for 的 IR 里补上 IrBuilder.pushLoop(...) 后，此处就会生效。
+                }
             }
         }
         //'continue' ';'      6 m
         else if(this.Utype==6){
-            if(SymbolManager.NotInForBlock()){
-                addError(this.continueToken6.getLineNumber(),"m");
+            if (SymbolManager.NotInForBlock()) {
+                // 不在 for 中使用 continue —— 语义错误 m
+                addError(this.continueToken6.getLineNumber(), "m");
+            } else {
+                // ===== IR：生成 continue 的跳转 =====
+                IrBasicBlock block = IrBuilder.getCurrentBlock();
+                IrBasicBlock contTarget = IrBuilder.getCurrentContinueTarget();
+                if (block != null && contTarget != null) {
+                    // 跳转到当前循环的 continue 目标基本块
+                    block.addInstruction("br label %" + contTarget.getLabel());
+                } else if (block != null) {
+                    // TODO: for 循环的 IR 尚未实现，这里暂时不生成 continue 的跳转 IR
+                    // 后续在 for 的 IR 里补上 IrBuilder.pushLoop(...) 后，此处就会生效。
+                }
             }
         }
+
         //'return' [Exp] ';'      7 f
         else if(this.Utype==7){
             if(SymbolManager.GetFuncType().equals("void")){ //给void函数返回
@@ -642,28 +816,116 @@ public class Stmt extends Node{
                     addError(this.returnToken7.getLineNumber(),"f");
                     this.exp7.visit();
                 }
+                //IR：void 函数返回
+                IrBasicBlock block = IrBuilder.getCurrentBlock();
+                if (block != null) {
+                    block.addInstruction("ret void");
+                }
             }
             else {
                 if(this.exp7!=null){
                     this.exp7.visit();
+                    // 再生成 IR：计算表达式的值，然后 ret i32 <value>
+                    IrBasicBlock block = IrBuilder.getCurrentBlock();
+                    if (block != null) {
+                        String value = this.exp7.generateIr(block);
+                        block.addInstruction("ret i32 " + value);
+                    }
+                }
+                else {
+                    // IR 兜底：给一个 ret i32 0，避免 IR 不完整
+                    IrBasicBlock block = IrBuilder.getCurrentBlock();
+                    if (block != null) {
+                        block.addInstruction("ret i32 0");
+                    }
                 }
             }
         }
         //'printf''('StringConst {','Exp}')'';'       8
-        else{
-            int realcount=0;
-            int formatcount=GetFormatStringCount(this.stringConst8.GetConstString());
-            if(this.exps8!=null) {
-                realcount=this.exps8.size();
+        else {
+            int realcount = 0;
+            int formatcount = GetFormatStringCount(this.stringConst8.GetConstString());
+
+            // 当前基本块（在 MainFuncDef.visit 里已经调用 IrBuilder.enterFunction）
+            IrBasicBlock block = IrBuilder.getCurrentBlock();
+
+            // 先做语义检查 & 生成每个实参的 IR 值
+            java.util.ArrayList<String> argValues = new java.util.ArrayList<>();
+            if (this.exps8 != null) {
+                realcount = this.exps8.size();
                 for (int i = 0; i < this.exps8.size(); i++) {
-                    this.exps8.get(i).visit();
+                    Exp e = this.exps8.get(i);
+                    e.visit();  // 原有语义检查
+
+                    if (block != null) {
+                        // 利用前面实现好的 Exp.generateIr(...)
+                        String v = e.generateIr(block);
+                        argValues.add(v);
+                    }
                 }
             }
-            if(realcount!=formatcount){//printf中格式字符与表达式个数不匹配
-                addError(this.printfToken8.getLineNumber(),"l");
+
+            if (realcount != formatcount) { // printf 中格式字符与表达式个数不匹配
+                addError(this.printfToken8.getLineNumber(), "l");
+            }
+
+            // ===== IR：用 putch / putint 实现 printf("%d", ...) =====
+            if (block != null) {
+                String fmt = this.stringConst8.GetConstString();
+
+                // 去掉最外层的双引号（比如 "\"%d\"" -> "%d"）
+                if (fmt.length() >= 2 && fmt.charAt(0) == '"' && fmt.charAt(fmt.length() - 1) == '"') {
+                    fmt = fmt.substring(1, fmt.length() - 1);
+                }
+
+                int argIndex = 0;
+
+                for (int i = 0; i < fmt.length(); i++) {
+                    char c = fmt.charAt(i);
+
+                    // 处理 %d
+                    if (c == '%' && i + 1 < fmt.length()
+                            && fmt.charAt(i + 1) == 'd') {
+
+                        if (argIndex < argValues.size()) {
+                            String v = argValues.get(argIndex++);
+                            block.addInstruction("call void @putint(i32 " + v + ")");
+                        }
+                        i++; // 跳过 'd'
+                    }
+                    // 处理转义字符 \n
+                    else if (c == '\\' && i + 1 < fmt.length()
+                            && fmt.charAt(i + 1) == 'n') {
+
+                        block.addInstruction("call void @putch(i32 10)");
+                        i++; // 跳过 'n'
+                    }
+                    // 普通字符
+                    else {
+                        block.addInstruction("call void @putch(i32 " + (int) c + ")");
+                    }
+                }
             }
         }
     }
+
+
+    /**
+     * 判断一个基本块是否已经以终结指令结束（ret 或 br）。
+     */
+    private boolean blockEndsWithTerminator(IrBasicBlock block) {
+        if (block == null) {
+            return false;
+        }
+        java.util.List<String> insts = block.getInstructions();
+        if (insts == null || insts.isEmpty()) {
+            return false;
+        }
+        String last = insts.get(insts.size() - 1).trim();
+        return last.startsWith("ret") || last.startsWith("br");
+    }
+
+
     private int GetFormatStringCount(String formatString) {
         int count = 0;
         for (int i = 0; i < formatString.length() - 1; i++) {
@@ -673,6 +935,8 @@ public class Stmt extends Node{
         }
         return count;
     }
+
+
 
     public Stmt(){
         super(SyntaxType.STMT);

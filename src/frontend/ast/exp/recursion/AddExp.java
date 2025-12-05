@@ -4,6 +4,8 @@ import frontend.Token;
 import frontend.ast.Node;
 import frontend.ast.SyntaxType;
 import frontend.ast.token.Ident;
+import midend.Ir.IrBasicBlock;
+import midend.Ir.IrFactory;
 
 import java.io.IOException;
 
@@ -110,7 +112,44 @@ public class AddExp extends Node{
         }
     }
 
+    public String generateIr(IrBasicBlock curBlock) {
+        if (this.Utype == 0) {
+            // AddExp -> MulExp
+            return mulExp0.generateIr(curBlock);
+        } else {
+            // AddExp -> AddExp ('+' | '-') MulExp
+            String left = addExp1.generateIr(curBlock);
+            String right = mulExp1.generateIr(curBlock);
 
+            String res = IrFactory.getInstance().newTemp();
+            String op;
+            if (plusToken1 != null) {
+                op = "add";
+            } else {
+                op = "sub";
+            }
+
+            curBlock.addInstruction(res + " = " + op + " i32 " + left + ", " + right);
+            return res;
+        }
+    }
+    // AddExp → MulExp | AddExp ('+' | '−') MulExp
+    // 计算当前加减表达式的整数值
+    public int GetValue() {
+        if (this.Utype == 0) {
+            // 只有一个 MulExp
+            return mulExp0.GetValue();
+        } else {
+            // AddExp ('+' | '−') MulExp
+            int left = addExp1.GetValue();
+            int right = mulExp1.GetValue();
+            if (plusToken1 != null) {
+                return left + right;
+            } else {
+                return left - right;
+            }
+        }
+    }
 
 
     public AddExp(){

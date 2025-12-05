@@ -6,6 +6,8 @@ import java.util.*;
 import Error.ErrorHandler;
 import OutputHelper.OutputHelper;
 import frontend.TokenStream;
+import midend.Ir.IrFactory;
+import midend.Ir.IrModule;
 
 import static frontend.Parser.parse;
 import static midend.MidEnd.GenerateSymbolTable;
@@ -37,6 +39,10 @@ public class Compiler {
             GenerateSymbolTable();
             OutputHelper.close();
 
+            //LLVM输出
+            OutputHelper.initialize("llvm_ir.txt");
+            OutputHelper.write(midend.Ir.IrGenerator.generate());
+            OutputHelper.close();
             // 根据是否有错误选择输出
             ErrorHandler.writeErrorsToFile("error.txt");
 

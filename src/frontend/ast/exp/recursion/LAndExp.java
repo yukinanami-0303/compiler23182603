@@ -3,6 +3,8 @@ import frontend.Parser;
 import frontend.Token;
 import frontend.ast.Node;
 import frontend.ast.SyntaxType;
+import midend.Ir.IrBasicBlock;
+import midend.Ir.IrFactory;
 
 import java.io.IOException;
 
@@ -95,7 +97,40 @@ public class LAndExp extends Node{
     }
 
 
+    /**
+     * 生成逻辑与表达式的 IR 值，返回 i32（0 或 1）。
+     * LAndExp → EqExp | LAndExp '&&' EqExp
+     */
+    public String generateIr(IrBasicBlock curBlock) {
+        if (this.Utype == 0) {
+            // LAndExp -> EqExp
+            return eqExp0.generateIr(curBlock);
+        } else {
+            // LAndExp -> LAndExp '&&' EqExp
+            String left = lAndExp1.generateIr(curBlock);
+            String right = eqExp1.generateIr(curBlock);
 
+            IrFactory factory = IrFactory.getInstance();
+
+            // left != 0
+            String leftCmp = factory.newTemp();
+            curBlock.addInstruction(leftCmp + " = icmp ne i32 " + left + ", 0");
+
+            // right != 0
+            String rightCmp = factory.newTemp();
+            curBlock.addInstruction(rightCmp + " = icmp ne i32 " + right + ", 0");
+
+            // and
+            String andRes = factory.newTemp();
+            curBlock.addInstruction(andRes + " = and i1 " + leftCmp + ", " + rightCmp);
+
+            // 扩展到 i32
+            String zext = factory.newTemp();
+            curBlock.addInstruction(zext + " = zext i1 " + andRes + " to i32");
+
+            return zext;
+        }
+    }
     public LAndExp(){
         super(SyntaxType.LAND_EXP);
     }

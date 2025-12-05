@@ -1,139 +1,116 @@
 package midend.Ir;
 
-import midend.Ir.Const.IrConst;
-import midend.Ir.Instr.Instr;
-import midend.Ir.IrType.IrType;
-import midend.Ir.IrValue.IrValue;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import java.util.HashMap;
-import java.util.Stack;
-
+/**
+ * IrFactory 用于维护唯一的 IrModule，并提供统一的构造辅助方法，
+ * 相当于一个全局的 IR “工厂”。
+ *
+ * 使用方式示例（后续在 AST 的 visit 中调用）：
+ *   IrModule m = IrFactory.getModule();
+ *   IrFunction f = IrFactory.getInstance().createFunction("i32", "main");
+ *   IrBasicBlock entry = IrFactory.getInstance().createBasicBlock(f, "entry");
+ *   entry.addInstruction("%1 = add i32 %a, %b");
+ *   entry.addInstruction("ret i32 %1");
+ *   String irText = m.emit();
+ */
 public class IrFactory {
-    private static final String GLOBAL_VAR_NAME_PREFIX = "@g_";
-    private static final String STRING_LITERAL_NAME_PREFIX = "@s_";
-    private static final String LOCAL_VAR_NAME_PREFIX = "%v";
-    private static final String BasicBlock_NAME_PREFIX = "b_";
-    private static final String FUNC_NAME_PREFIX = "@f_";
 
-    private static IrModule currentModule = null;
-    private static IrValue.IrBasicBlock currentBasicBlock = null;
-    private static IrValue.IrFunction currentFunction = null;
-    private static final Stack<IrValue.IrLoop> loopStack = new Stack<>();
+    /** 单例实例 */
+    private static final IrFactory INSTANCE = new IrFactory();
 
-    private static int basicBlockCount = 0;
-    private static int globalVarNameCount = 0;
-    private static int stringConstNameCount = 0;
-    private static final HashMap<IrValue.IrFunction, Integer> localVarNameCountMap = new HashMap<>();
+    /** 整个编译过程只维护一个模块 */
+    private final IrModule module = new IrModule();
 
-    public static void SetCurrentModule(IrModule irModule) {
-        currentModule = irModule;
+    /** 用于生成唯一的临时寄存器名，例如 %t0, %t1, ... */
+    private final AtomicInteger tempId = new AtomicInteger(0);
+
+    /** 用于生成唯一的基本块标签，例如 bb0, bb1, ... */
+    private final AtomicInteger blockId = new AtomicInteger(0);
+    private final java.util.Map<String, String> funcRetTypeMap = new java.util.HashMap<>();
+
+
+    private IrFactory() {
+        // 记录内建库函数的返回类型，供 UnaryExp.generateIr 使用
+        funcRetTypeMap.put("getint", "i32");
+        funcRetTypeMap.put("putint", "void");
+        funcRetTypeMap.put("putch", "void");
+        funcRetTypeMap.put("putstr", "void");
     }
 
-    public static IrModule GetCurrentModule() {
-        return currentModule;
+    public static IrFactory getInstance() {
+        return INSTANCE;
     }
 
-    public static void Check() {
-        currentModule.Check();
+    /**
+     * 直接获取全局唯一的模块对象
+     */
+    public static IrModule getModule() {
+        return INSTANCE.module;
     }
 
-    public static IrValue.IrFunction GetNewFunctionIr(String name, IrType returnType) {
-        // 创建新Function
-        IrValue.IrFunction irFunction = new IrValue.IrFunction(GetFuncName(name), returnType);
-        currentModule.AddIrFunction(irFunction);
-        // 设置为当前处理的Function
-        currentFunction = irFunction;
-        // 为Function添加一个基础basic block
-        IrValue.IrBasicBlock irBasicBlock = GetNewBasicBlockIr();
-        // 设置当前的basic block
-        currentBasicBlock = irBasicBlock;
-
-        // 添加计数表
-        localVarNameCountMap.put(irFunction, 0);
-
-        return irFunction;
+    /**
+     * 创建一个新的函数并加入模块
+     *
+     * @param retType 返回类型，如 "i32" 或 "void"
+     * @param name    函数名（不加 @ 的裸名）
+     */
+    public IrFunction createFunction(String retType, String name) {
+        IrFunction func = new IrFunction(retType, name);
+        module.addFunction(func);
+        funcRetTypeMap.put(name, retType);  // 记录函数返回类型
+        return func;
     }
 
-    public static IrValue.IrBasicBlock GetNewBasicBlockIr() {
-        IrValue.IrBasicBlock basicBlock = new IrValue.IrBasicBlock(GetBasicBlockName(), currentFunction);
-        // 添加到当前的处理中
-        currentFunction.AddBasicBlock(basicBlock);
 
-        return basicBlock;
+    /**
+     * 在指定函数下创建一个基本块。
+     * 如果 prefix 为空，则自动使用 "bb" 前缀。
+     *
+     * @param func   所属函数
+     * @param prefix 标签前缀（如 "entry"、"if_true" 等）
+     */
+    public IrBasicBlock createBasicBlock(IrFunction func, String prefix) {
+        if (func == null) {
+            throw new IllegalArgumentException("func is null when creating basic block");
+        }
+        String base = (prefix == null || prefix.isEmpty()) ? "bb" : prefix;
+        String label = base;
+        // 为避免同名，统一在末尾加一个序号
+        int id = blockId.getAndIncrement();
+        if (id > 0) {
+            label = base + "." + id;
+        }
+        IrBasicBlock block = new IrBasicBlock(label);
+        func.addBasicBlock(block);
+        return block;
     }
 
-    public static IrValue.IrBasicBlock GetNewBasicBlockIr(IrValue.IrFunction irFunction, IrValue.IrBasicBlock afterBlock) {
-        IrValue.IrBasicBlock basicBlock = new IrValue.IrBasicBlock(GetBasicBlockName(), irFunction);
-        // 添加到当前的处理中
-        irFunction.AddBasicBlock(basicBlock, afterBlock);
-
-        return basicBlock;
+    /**
+     * 生成一个新的 SSA 临时寄存器名，如 "%t0"
+     */
+    public String newTemp() {
+        int id = tempId.getAndIncrement();
+        return "%t" + id;
     }
 
-    public static void SetCurrentBasicBlock(IrValue.IrBasicBlock irBasicBlock) {
-        currentBasicBlock = irBasicBlock;
+
+    public String getFuncRetType(String name) {
+        String t = funcRetTypeMap.get(name);
+        // 默认当作 i32（比如前向调用或没记录到的情况）
+        return (t != null) ? t : "i32";
+    }
+    /**
+     * 如需从头重新生成 IR，可以在编译新 testfile.txt 前调用。
+     * 目前只重置计数器；模块清空可以在 IrModule 里新增 clear() 再在此调用。
+     */
+    public void reset() {
+        tempId.set(0);
+        blockId.set(0);
+        module.clear();
+        funcRetTypeMap.clear();
     }
 
-    public static IrValue.IrGlobalValue GetNewIrGlobalValue(IrType valueType, IrConst initValue) {
-        IrValue.IrGlobalValue globalValue = new IrValue.IrGlobalValue(valueType, GetGlobalVarName(), initValue);
-        currentModule.AddIrGlobalValue(globalValue);
-        return globalValue;
-    }
 
-    public static IrConst.IrConstString GetNewIrConstString(String string) {
-        return currentModule.GetNewIrConstString(string);
-    }
 
-    public static String GetFuncName(String name) {
-        return name.equals("main") ? "@" + name : FUNC_NAME_PREFIX + name;
-    }
-
-    public static String GetBasicBlockName() {
-        return BasicBlock_NAME_PREFIX + basicBlockCount++;
-    }
-
-    public static String GetGlobalVarName() {
-        return GLOBAL_VAR_NAME_PREFIX + globalVarNameCount++;
-    }
-
-    public static String GetLocalVarName() {
-        int count = localVarNameCountMap.get(currentFunction);
-        localVarNameCountMap.put(currentFunction, count + 1);
-        return LOCAL_VAR_NAME_PREFIX + count;
-    }
-
-    public static String GetLocalVarName(IrValue.IrFunction irFunction) {
-        int count = localVarNameCountMap.get(irFunction);
-        localVarNameCountMap.put(irFunction, count + 1);
-        return LOCAL_VAR_NAME_PREFIX + count;
-    }
-
-    public static String GetStringConstName() {
-        return STRING_LITERAL_NAME_PREFIX + stringConstNameCount++;
-    }
-
-    public static void AddInstr(Instr instr) {
-        currentBasicBlock.AddInstr(instr);
-        instr.SetInBasicBlock(currentBasicBlock);
-    }
-
-    public static IrValue.IrBasicBlock GetCurrentBasicBlock() {
-        return currentBasicBlock;
-    }
-
-    public static IrType GetCurrentFunctionReturnType() {
-        return currentFunction.GetReturnType();
-    }
-
-    public static void LoopStackPush(IrValue.IrLoop loop) {
-        loopStack.push(loop);
-    }
-
-    public static void LoopStackPop() {
-        loopStack.pop();
-    }
-
-    public static IrValue.IrLoop LoopStackPeek() {
-        return loopStack.peek();
-    }
 }

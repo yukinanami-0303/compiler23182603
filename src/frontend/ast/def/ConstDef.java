@@ -6,6 +6,8 @@ import frontend.ast.SyntaxType;
 import frontend.ast.exp.ConstExp;
 import frontend.ast.token.Ident;
 import frontend.ast.value.ConstInitVal;
+import midend.Ir.IrFactory;
+import midend.Ir.IrModule;
 import midend.Symbol.SymbolManager;
 import midend.Symbol.ValueSymbol;
 
@@ -95,30 +97,58 @@ public class ConstDef extends Node{
 
     //ConstDef → Ident [ '[' ConstExp ']' ] '=' ConstInitVal
     @Override
-    public void visit(){
-        String symbolName=ident.GetTokenValue();
-        ArrayList<Integer> initValueList=new ArrayList<Integer>();
-        if(constExp!=null){//是数组
+    public void visit() {
+        String symbolName = ident.GetTokenValue();
+        ArrayList<Integer> initValueList = new ArrayList<>();
+        // === 数组 const ===
+        if (constExp != null) {
             constExp.visit();
             constInitVal.visit();
-            //initValueList = constInitVal.GetInitValueList();
-            ValueSymbol symbol=new ValueSymbol(symbolName,"ConstIntArray");
+            initValueList = constInitVal.GetInitValueList();
+            int len = constExp.GetValue(); // 维度，题目保证是常量表达式
+
+            ValueSymbol symbol = new ValueSymbol(symbolName, "ConstIntArray");
             symbol.SetIsConst(true);
+            symbol.SetArrayLength(len);
             symbol.SetValueList(initValueList);
             this.symbol = symbol;
             SymbolManager.AddSymbol(this.symbol, ident.GetTokenLineNumber());
+
+            // 只有在全局作用域才生成全局定义
+            if (symbol.IsGlobal()) {
+                IrModule module = IrFactory.getModule();
+                StringBuilder elems = new StringBuilder();
+                for (int i = 0; i < len; i++) {
+                    if (i > 0) elems.append(", ");
+                    int v = (i < initValueList.size()) ? initValueList.get(i) : 0;
+                    elems.append("i32 ").append(v);
+                }
+                String ir = "@" + symbolName + " = constant [" + len + " x i32] [" + elems + "]";
+                module.addGlobalDef(ir);
+            }
         }
+        //不是数组
         else {
             constInitVal.visit();
-            //initValueList = constInitVal.GetInitValueList();
-            //const常量
-            ValueSymbol symbol = new ValueSymbol(symbolName, "ConstInt");//变量，相当于数组数量为0
+            initValueList = constInitVal.GetInitValueList();
+
+            ValueSymbol symbol = new ValueSymbol(symbolName, "ConstInt");
             symbol.SetIsConst(true);
             symbol.SetValueList(initValueList);
             this.symbol = symbol;
             SymbolManager.AddSymbol(this.symbol, ident.GetTokenLineNumber());
+
+            // 全局 const 标量 IR
+            if (SymbolManager.GetFuncType().equals("")
+                    && initValueList != null && !initValueList.isEmpty()) {
+                int v = initValueList.get(0);
+                IrModule module = IrFactory.getModule();
+                module.addGlobalDef("@" + symbolName + " = constant i32 " + v);
+            }
         }
     }
+
+
 
 
 

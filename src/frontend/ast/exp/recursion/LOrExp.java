@@ -3,6 +3,8 @@ import frontend.Parser;
 import frontend.Token;
 import frontend.ast.Node;
 import frontend.ast.SyntaxType;
+import midend.Ir.IrBasicBlock;
+import midend.Ir.IrFactory;
 
 import java.io.IOException;
 
@@ -96,6 +98,40 @@ public class LOrExp extends Node{
     }
 
 
+    /**
+     * 生成逻辑或表达式的 IR 值，返回 i32（0 或 1）。
+     * LOrExp → LAndExp | LOrExp '||' LAndExp
+     */
+    public String generateIr(IrBasicBlock curBlock) {
+        if (this.Utype == 0) {
+            // LOrExp -> LAndExp
+            return lAndExp0.generateIr(curBlock);
+        } else {
+            // LOrExp -> LOrExp '||' LAndExp
+            String left = lOrExp1.generateIr(curBlock);
+            String right = lAndExp1.generateIr(curBlock);
+
+            IrFactory factory = IrFactory.getInstance();
+
+            // left != 0
+            String leftCmp = factory.newTemp();
+            curBlock.addInstruction(leftCmp + " = icmp ne i32 " + left + ", 0");
+
+            // right != 0
+            String rightCmp = factory.newTemp();
+            curBlock.addInstruction(rightCmp + " = icmp ne i32 " + right + ", 0");
+
+            // or
+            String orRes = factory.newTemp();
+            curBlock.addInstruction(orRes + " = or i1 " + leftCmp + ", " + rightCmp);
+
+            // 扩展到 i32
+            String zext = factory.newTemp();
+            curBlock.addInstruction(zext + " = zext i1 " + orRes + " to i32");
+
+            return zext;
+        }
+    }
 
 
     public LOrExp(){

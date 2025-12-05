@@ -4,6 +4,7 @@ import frontend.Token;
 import frontend.ast.Node;
 import frontend.ast.SyntaxType;
 import frontend.ast.block.Block;
+import midend.Ir.IrBuilder;
 import midend.Symbol.SymbolManager;
 
 import java.io.IOException;
@@ -76,12 +77,18 @@ public class MainFuncDef extends Node{
     //MainFuncDef → 'int' 'main' '(' ')' Block
     @Override
     public void visit(){
+        IrBuilder.enterFunction("i32", "main");
         SymbolManager.CreateSonSymbolTable();//遇到Block创建子符号表并进入子符号表
         block.visit();
         if(!this.block.haveReturnStmt()){//检查return的缺失
             addError(this.block.GetRbraceLineNumber(),"g");
+            if (IrBuilder.getCurrentBlock() != null) {
+                IrBuilder.getCurrentBlock().addInstruction("ret i32 0");
+            }
         }
         SymbolManager.GoToFatherSymbolTable();
+
+        IrBuilder.leaveFunction();
     }
 
     public MainFuncDef(){

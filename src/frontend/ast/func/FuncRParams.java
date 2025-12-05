@@ -4,10 +4,12 @@ import frontend.Token;
 import frontend.ast.Node;
 import frontend.ast.SyntaxType;
 import frontend.ast.exp.Exp;
+import midend.Ir.IrBasicBlock;
 
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import static frontend.TokenStream.Peek;
 import static frontend.TokenStream.nextToken;
@@ -72,6 +74,22 @@ public class FuncRParams extends Node{
             }
         }
         return realParamList;
+    }
+    /**
+     * 生成实参表达式的 IR，返回每个实参的 SSA 名或立即数。
+     * 假定 visit() 已经在语义阶段被调用过，这里只做 IR。
+     */
+    public List<String> generateArgsIr(IrBasicBlock block) {
+        ArrayList<String> res = new ArrayList<>();
+        res.add(exp.generateIr(block));
+        if (exps != null) {  // 这里的 exps 是你保存所有 Exp 实参的列表字段
+            for (int i = 0; i < exps.size(); i++) {
+                Exp e = exps.get(i);
+                String v = e.generateIr(block);
+                res.add(v);
+            }
+        }
+        return res;
     }
 
     public FuncRParams(){

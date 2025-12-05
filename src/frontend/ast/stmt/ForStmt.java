@@ -17,6 +17,7 @@ import static Error.ErrorHandler.addError;
 import static frontend.TokenStream.Peek;
 import static frontend.TokenStream.nextToken;
 import static midend.Symbol.SymbolManager.GetSymbol;
+import midend.Ir.IrBasicBlock;
 
 public class ForStmt extends Node{
     //ForStmt → LVal '=' Exp { ',' LVal '=' Exp }
@@ -112,6 +113,35 @@ public class ForStmt extends Node{
         }
     }
 
+    /**
+     * 生成 ForStmt 中一组赋值的 IR：
+     *   ForStmt → LVal '=' Exp { ',' LVal '=' Exp }
+     * 在给定的基本块 block 中依次生成：
+     *   store i32 <Exp>, i32* <LVal>
+     */
+    public void generateIr(IrBasicBlock block) {
+        if (block == null) {
+            return;
+        }
+
+        // 第一组：lVal = exp
+        if (lVal != null && exp != null) {
+            String value = exp.generateIr(block);      // 右值
+            String addr  = lVal.generateAddr(block);   // 左值地址
+            block.addInstruction("store i32 " + value + ", i32* " + addr);
+        }
+
+        // 后续的 { ',' LVal '=' Exp }
+        if (commaTokens != null) {
+            for (int i = 0; i < commaTokens.size(); i++) {
+                LVal lv = lVals.get(i);
+                Exp  e  = exps.get(i);
+                String value = e.generateIr(block);
+                String addr  = lv.generateAddr(block);
+                block.addInstruction("store i32 " + value + ", i32* " + addr);
+            }
+        }
+    }
 
     public ForStmt(){
         super(SyntaxType.FOR_STMT);

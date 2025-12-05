@@ -6,10 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="34581d93-9a3c-4833-877d-bebc6674857c" name="更改" comment="Init">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/midend/Ir/Const/IrConst.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/midend/Ir/Const/IrConst.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/midend/Ir/Const/IrConstString.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/midend/Ir/IrFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/midend/Ir/IrFactory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/midend/Ir/IrModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/midend/Ir/IrModule.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -80,7 +76,14 @@
       <option name="project" value="LOCAL" />
       <updated>1764675525264</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Init">
+      <created>1764740166513</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1764740166514</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">

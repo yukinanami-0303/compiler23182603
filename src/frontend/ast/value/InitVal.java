@@ -5,6 +5,7 @@ import frontend.ast.Node;
 import frontend.ast.SyntaxType;
 import frontend.ast.exp.Exp;
 import frontend.ast.func.FuncFParam;
+import midend.Ir.IrBasicBlock;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -112,26 +113,54 @@ public class InitVal extends Node{
             }
         }
     }
-    /*
+    // InitVal → Exp | '{' [ Exp { ',' Exp } ] '}'
     public ArrayList<Integer> GetInitValueList() {
         ArrayList<Integer> initValueList = new ArrayList<>();
-        if(exp0!=null){
+        if (exp0 != null) {
+            // 标量初始化：InitVal → Exp
             initValueList.add(exp0.GetValue());
-        }
-        else{
-            if(exp1!=null) {
+        } else {
+            // 数组初始化：InitVal → '{' [ Exp { ',' Exp } ] '}'
+            if (exp1 != null) {
                 initValueList.add(exp1.GetValue());
             }
-            if(exps1!=null){
-                for(int i=0;i<exps1.size();i++){
+            if (exps1 != null) {
+                for (int i = 0; i < exps1.size(); i++) {
                     initValueList.add(exps1.get(i).GetValue());
                 }
             }
         }
         return initValueList;
     }
+    public String generateScalarIr(IrBasicBlock curBlock) {
+        if (exp0 != null) {
+            // InitVal → Exp
+            return exp0.generateIr(curBlock);
+        }
+        return "0";
+    }
 
+
+    /**
+     * 返回数组初始化用的 Exp 列表（仅一维），顺序为 { e0, e1, e2, ... }。
+     * 供局部数组的 IR 初始化使用。
      */
+    public java.util.List<Exp> getExpList() {
+        ArrayList<Exp> list = new ArrayList<>();
+        if (exp0 != null) {
+            // 标量 InitVal → Exp，当成长度为 1 的数组看
+            list.add(exp0);
+        } else {
+            if (exp1 != null) {
+                list.add(exp1);
+            }
+            if (exps1 != null) {
+                list.addAll(exps1);
+            }
+        }
+        return list;
+    }
+
     public InitVal(){
         super(SyntaxType.INIT_VAL);
     }
