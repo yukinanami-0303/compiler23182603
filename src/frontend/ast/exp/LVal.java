@@ -137,7 +137,15 @@ public class LVal extends Node {
             boolean isArray = symbolType.endsWith("Array");
 
             // ==== 标量：没有下标，沿用原来的规则 ====
+            // 包括普通 int、const int、以及“整个数组名”这种情况（数组但没有下标）
             if (!isArray || this.exp == null) {
+                // 优先使用在 VarDef / FuncFParam 里记录的 irName
+                String irName = valueSymbol.GetIrName();
+                if (irName != null && !irName.isEmpty()) {
+                    return irName;
+                }
+
+                // 兜底
                 if (symbolType.startsWith("Static")) {
                     return "@__static_" + identName;
                 } else if (valueSymbol.IsGlobal()) {
@@ -148,16 +156,45 @@ public class LVal extends Node {
             }
 
             // ==== 数组元素：a[Exp] ====
-            int len = valueSymbol.GetArrayLength();   // 在 ConstDef / VarDef 中已设置
-            String idx = this.exp.generateIr(curBlock);
+            String idx = this.exp.generateIr(curBlock);   // 下标值（i32）
+
+            // 2.1 形参数组：int a[] —— 本质类型是 i32*
+            if (valueSymbol.IsArrayParam()) {
+                // 在 FuncFParam.visit() 中，数组形参已经设置过 irParamName = "%arg.a"
+                String basePtr = valueSymbol.GetIrParamName();
+                if (basePtr == null || basePtr.isEmpty()) {
+                    // 防御性兜底：若没记录 irParamName，就退回用 %a
+                    basePtr = "%" + identName;
+                }
+
+                String ptr = IrFactory.getInstance().newTemp();
+                // 对 i32* 做 GEP：getelementptr i32, i32* %base, i32 idx
+                curBlock.addInstruction(
+                        ptr + " = getelementptr i32, i32* " + basePtr + ", i32 " + idx
+                );
+                return ptr;
+            }
+
+            // 2.2 普通数组（全局 / 静态 / 局部 alloca [N x i32]）
+            int len = valueSymbol.GetArrayLength();       // 在 VarDef / ConstDef 中设置
+            // 防御：理论上这里 len 必须 > 0，避免出现 [-1 x i32]
+            if (len <= 0) {
+                // 这里给个兜底（不会影响正常的 a[5] 等情况，主要防止 [-1 x i32] 再次出现）
+                len = 1;
+            }
 
             String base;
-            if (symbolType.startsWith("Static")) {
-                base = "@__static_" + identName;
-            } else if (valueSymbol.IsGlobal()) {
-                base = "@" + identName;
+            String irName = valueSymbol.GetIrName();
+            if (irName != null && !irName.isEmpty()) {
+                base = irName;
             } else {
-                base = "%" + identName;
+                if (symbolType.startsWith("Static")) {
+                    base = "@__static_" + identName;
+                } else if (valueSymbol.IsGlobal()) {
+                    base = "@" + identName;
+                } else {
+                    base = "%" + identName;
+                }
             }
 
             String ptr = IrFactory.getInstance().newTemp();
@@ -174,27 +211,51 @@ public class LVal extends Node {
 
 
 
+
     public Ident GetIdent(){
         return this.ident;
     }
 
-    // 仅用于 ConstExp / ConstInitVal 等编译期常量求值场景
-    // 要求该 LVal 对应的是 const 标量，并且没有下标（不是数组 / 非 const 的情况直接兜底）
+    /**
+     * 仅用于 ConstExp / ConstInitVal / 全局初始化 等编译期常量求值场景。
+     *
+     * 支持两类情况：
+     *  1) const 标量：    a
+     *  2) const 一维数组：b[a] 其中 b 为 const 数组、a 为编译期常量下标
+     *
+     * 其它情况（非常量、非常量下标、多维等）统一返回 0，表示“不是合法常量表达式”。
+     */
     public int GetConstValue() {
         String identName = ident.GetTokenValue();
         Symbol symbol = SymbolManager.GetSymbol(identName);
-        if (symbol instanceof ValueSymbol) {
-            ValueSymbol valueSymbol = (ValueSymbol) symbol;
-            if (valueSymbol.IsConst()
-                    && this.exp == null
-                    && valueSymbol.GetValueList() != null
-                    && !valueSymbol.GetValueList().isEmpty()) {
-                return valueSymbol.GetValueList().get(0);
-            }
+        if (!(symbol instanceof ValueSymbol)) {
+            // 找不到符号或不是 ValueSymbol，都视为非常量表达式
+            return 0;
         }
-        // 非法常量表达式场景防御性返回 0，语义上一般不会走到这里
-        return 0;
+        ValueSymbol vSym = (ValueSymbol) symbol;
+
+        // 所有常量求值都要求符号本身是 const，并且有保存初始化后的 valueList
+        java.util.ArrayList<Integer> valueList = vSym.GetValueList();
+        if (!vSym.IsConst() || valueList == null || valueList.isEmpty()) {
+            return 0;
+        }
+
+        // 1) const 标量：没有下标，直接取 valueList[0]
+        if (this.exp == null) {
+            return valueList.get(0);
+        }
+
+        // 2) const 一维数组：有一个下标表达式，比如 b[a]
+        //    这里要求下标本身也是编译期常量（Exp.GetValue() 已经走完整个常量求值链）
+        int index = this.exp.GetValue();
+
+        // 越界都视为“非法常量表达式”，按之前约定返回 0
+        if (index < 0 || index >= valueList.size()) {
+            return 0;
+        }
+        return valueList.get(index);
     }
+
 
     public LVal(){
         super(SyntaxType.LVAL_EXP);

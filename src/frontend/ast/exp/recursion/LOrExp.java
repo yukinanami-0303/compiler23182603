@@ -4,7 +4,9 @@ import frontend.Token;
 import frontend.ast.Node;
 import frontend.ast.SyntaxType;
 import midend.Ir.IrBasicBlock;
+import midend.Ir.IrBuilder;
 import midend.Ir.IrFactory;
+import midend.Ir.IrFunction;
 
 import java.io.IOException;
 
@@ -132,7 +134,31 @@ public class LOrExp extends Node{
             return zext;
         }
     }
+    public void generateCondBr(IrBasicBlock curBlock,
+                               IrBasicBlock trueBlock,
+                               IrBasicBlock falseBlock) {
+        IrFactory factory = IrFactory.getInstance();
 
+        if (this.Utype == 0) {
+            // 只有一个 LAndExp，直接交给 LAndExp 的短路逻辑
+            lAndExp0.generateCondBr(curBlock, trueBlock, falseBlock);
+        } else {
+            // LOrExp -> LOrExp '||' LAndExp
+            // 左边：lOrExp1   右边：lAndExp1
+            IrFunction curFunc = IrBuilder.getCurrentFunction();
+            // 只有左边为假时才会到达 rhsBlock
+            IrBasicBlock rhsBlock = factory.createBasicBlock(curFunc, "lor_rhs");
+
+            // 先对左边生成短路控制流：
+            //   左真 -> trueBlock
+            //   左假 -> rhsBlock
+            lOrExp1.generateCondBr(curBlock, trueBlock, rhsBlock);
+
+            // 在 rhsBlock 中继续用 LAndExp 的短路逻辑处理右边
+            IrBuilder.setCurrentBlock(rhsBlock);
+            lAndExp1.generateCondBr(rhsBlock, trueBlock, falseBlock);
+        }
+    }
 
     public LOrExp(){
         super(SyntaxType.LOR_EXP);

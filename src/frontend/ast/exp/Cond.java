@@ -41,7 +41,13 @@ public class Cond extends Node{
     public String generateIr(IrBasicBlock curBlock) {
         return lOrExp.generateIr(curBlock);
     }
-
+    public void generateCondBr(IrBasicBlock curBlock,
+                               IrBasicBlock trueBlock,
+                               IrBasicBlock falseBlock) {
+        if (lOrExp != null) {
+            lOrExp.generateCondBr(curBlock, trueBlock, falseBlock);
+        }
+    }
 
 
     public Cond(){

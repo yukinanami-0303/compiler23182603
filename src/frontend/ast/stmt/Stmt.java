@@ -620,64 +620,72 @@ public class Stmt extends Node{
             SymbolManager.GoToFatherSymbolTable();
         }
 
-        //'if' '(' Cond ')' Stmt [ 'else' Stmt ]      3
-        else if(this.Utype==3){
+//'if' '(' Cond ')' Stmt [ 'else' Stmt ]      3
+        else if (this.Utype == 3) {
+            // 1. 先做 Cond 的语义分析
             this.cond3.visit();
-            // ===== IR：if-else 语句 =====
+
+            // 2. IR 生成上下文
             IrBasicBlock curBlock = IrBuilder.getCurrentBlock();
             IrFunction curFunc = IrBuilder.getCurrentFunction();
-
-            // 这里原来多调用了一次 then/else 的 visit，删掉：
-            // this.stmt31.visit();
-            // if(this.stmt32!=null){
-            //     this.stmt32.visit();
-            // }
+            if (curBlock == null || curFunc == null) {
+                // 没在函数里就不生成 IR（一般不会发生）
+                return;
+            }
 
             IrFactory factory = IrFactory.getInstance();
 
-            // 1. 生成条件表达式的值（i32）
+            // 3. 生成 cond 的 i32 值，并转成 i1
             String condVal = this.cond3.generateIr(curBlock);
-
-            // 2. 把 condVal 转成 i1，用于 br 指令
             String condBool = factory.newTemp();
             curBlock.addInstruction(condBool + " = icmp ne i32 " + condVal + ", 0");
 
-            // 3. 创建基本块
+            // 4. 创建基本块
             IrBasicBlock thenBlock = factory.createBasicBlock(curFunc, "if_then");
-            IrBasicBlock endBlock = factory.createBasicBlock(curFunc, "if_end");
+            IrBasicBlock endBlock  = factory.createBasicBlock(curFunc, "if_end");
             IrBasicBlock elseBlock = null;
 
-            // 4. 条件跳转
+            // 5. 条件跳转
             if (this.stmt32 != null) {
                 elseBlock = factory.createBasicBlock(curFunc, "if_else");
-                curBlock.addInstruction("br i1 " + condBool
-                        + ", label %" + thenBlock.getLabel()
-                        + ", label %" + elseBlock.getLabel());
+                curBlock.addInstruction(
+                        "br i1 " + condBool +
+                                ", label %" + thenBlock.getLabel() +
+                                ", label %" + elseBlock.getLabel()
+                );
             } else {
-                curBlock.addInstruction("br i1 " + condBool
-                        + ", label %" + thenBlock.getLabel()
-                        + ", label %" + endBlock.getLabel());
+                curBlock.addInstruction(
+                        "br i1 " + condBool +
+                                ", label %" + thenBlock.getLabel() +
+                                ", label %" + endBlock.getLabel()
+                );
             }
 
-            // 5. then 分支
+            // 6. then 分支
             IrBuilder.setCurrentBlock(thenBlock);
             this.stmt31.visit();
-            if (!blockEndsWithTerminator(thenBlock)) {
-                thenBlock.addInstruction("br label %" + endBlock.getLabel());
+            IrBasicBlock thenLast = IrBuilder.getCurrentBlock();
+            if (thenLast != null && !blockEndsWithTerminator(thenLast)) {
+                // 注意这里用的是 thenLast，而不是 thenBlock
+                thenLast.addInstruction("br label %" + endBlock.getLabel());
             }
 
-            // 6. else 分支（如果有）
+            // 7. else 分支（如果有）
             if (this.stmt32 != null) {
                 IrBuilder.setCurrentBlock(elseBlock);
                 this.stmt32.visit();
-                if (!blockEndsWithTerminator(elseBlock)) {
-                    elseBlock.addInstruction("br label %" + endBlock.getLabel());
+                IrBasicBlock elseLast = IrBuilder.getCurrentBlock();
+                if (elseLast != null && !blockEndsWithTerminator(elseLast)) {
+                    // 同样用 elseLast
+                    elseLast.addInstruction("br label %" + endBlock.getLabel());
                 }
             }
 
-            // 7. 合流到 endBlock
+            // 8. 合流到 endBlock
             IrBuilder.setCurrentBlock(endBlock);
         }
+
+
 
         //'for' '(' [ForStmt] ';' [Cond] ';' [ForStmt] ')' Stmt       4
         else if(this.Utype==4){
@@ -723,17 +731,13 @@ public class Stmt extends Node{
                 // 4. cond 块：判断循环是否继续
                 IrBuilder.setCurrentBlock(condBlock);
                 if (this.cond4 != null) {
-                    // Cond → LOrExp，返回 i32（0/1）
-                    String condVal  = this.cond4.generateIr(condBlock);
-                    String condBool = factory.newTemp();
-                    condBlock.addInstruction(condBool + " = icmp ne i32 " + condVal + ", 0");
-                    condBlock.addInstruction("br i1 " + condBool
-                            + ", label %" + bodyBlock.getLabel()
-                            + ", label %" + endBlock.getLabel());
+                    // 使用 Cond 的短路接口：真 -> bodyBlock，假 -> endBlock
+                    this.cond4.generateCondBr(condBlock, bodyBlock, endBlock);
                 } else {
                     // for(;;) 无条件循环：从 cond 直接跳 body
                     condBlock.addInstruction("br label %" + bodyBlock.getLabel());
                 }
+
 
                 // 5. 注册本层循环的 break / continue 目标
                 IrBasicBlock continueTarget = (stepBlock != null) ? stepBlock : condBlock;

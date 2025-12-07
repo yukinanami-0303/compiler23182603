@@ -5,6 +5,7 @@ import java.util.ArrayList;
 public class ValueSymbol extends Symbol{
     private boolean isArrayParam = false;  // 是否为函数形参数组
     private String irParamName = null;     // 对应 IR 参数名，例如 "%arg.a"
+    private String irName = null;
     private int arrayLength = -1;
     private boolean isGlobal;
     private int size;
@@ -60,5 +61,12 @@ public class ValueSymbol extends Symbol{
     }
     public ArrayList<Integer> GetValueList() {
         return this.valueList;
+    }
+    public void SetIrName(String irName) {
+        this.irName = irName;
+    }
+
+    public String GetIrName() {
+        return this.irName;
     }
 }

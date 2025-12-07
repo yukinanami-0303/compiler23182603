@@ -7,6 +7,7 @@ import frontend.ast.token.BType;
 import frontend.ast.token.Ident;
 import midend.Ir.IrBasicBlock;
 import midend.Ir.IrBuilder;
+import midend.Ir.IrFactory;
 import midend.Ir.IrFunction;
 import midend.Symbol.FuncSymbol;
 import midend.Symbol.Symbol;
@@ -81,32 +82,40 @@ public class FuncFParam extends Node{
         if (this.lbrackToken != null) { // 数组形参
             vSym = new ValueSymbol(symbolName, "IntArray");
             vSym.SetIsArrayParam(true);
+
         } else {                        // 普通 int 形参
             vSym = new ValueSymbol(symbolName, "Int");
         }
         this.symbol = vSym;
         SymbolManager.AddSymbol(this.symbol, ident.GetTokenLineNumber());
 
-
         // ===== IR: 形参加入当前函数 =====
         IrFunction func = IrBuilder.getCurrentFunction();
         IrBasicBlock entry = IrBuilder.getCurrentBlock();
         if (func != null && entry != null) {
             String irParamName = "%arg." + symbolName;
-            vSym.SetIrParamName(irParamName);
+            vSym.SetIrParamName(irParamName);   // 仍然记录形参寄存器名
 
             if (this.lbrackToken != null) {
                 // 数组形参：参数类型 i32*
                 func.addParam("i32*", irParamName);
-                // 不再对 a 做 alloca i32，后面 LVal 直接用这个指针做 GEP
+                // 数组形参本身就是 i32*，后续 LVal 会用 irParamName 做 GEP
+
             } else {
                 // 普通 int 形参
                 func.addParam("i32", irParamName);
-                entry.addInstruction("%" + symbolName + " = alloca i32");
-                entry.addInstruction("store i32 " + irParamName + ", i32* %" + symbolName);
+
+                // 为该形参分配一个统一的栈地址名（比如 %t20）
+                String addr = IrFactory.getInstance().newTemp();
+                vSym.SetIrName(addr);
+
+                // 在 entry 里分配和初始化
+                entry.addInstruction(addr + " = alloca i32");
+                entry.addInstruction("store i32 " + irParamName + ", i32* " + addr);
             }
         }
     }
+
     public Symbol GetSymbol(){
         return this.symbol;
     }

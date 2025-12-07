@@ -6,6 +6,8 @@ import frontend.ast.SyntaxType;
 import frontend.ast.exp.ConstExp;
 import frontend.ast.token.Ident;
 import frontend.ast.value.ConstInitVal;
+import midend.Ir.IrBasicBlock;
+import midend.Ir.IrBuilder;
 import midend.Ir.IrFactory;
 import midend.Ir.IrModule;
 import midend.Symbol.SymbolManager;
@@ -114,7 +116,7 @@ public class ConstDef extends Node{
             this.symbol = symbol;
             SymbolManager.AddSymbol(this.symbol, ident.GetTokenLineNumber());
 
-            // 只有在全局作用域才生成全局定义
+            // 全局 const 数组：生成全局 constant
             if (symbol.IsGlobal()) {
                 IrModule module = IrFactory.getModule();
                 StringBuilder elems = new StringBuilder();
@@ -125,6 +127,25 @@ public class ConstDef extends Node{
                 }
                 String ir = "@" + symbolName + " = constant [" + len + " x i32] [" + elems + "]";
                 module.addGlobalDef(ir);
+            }
+            // 局部 const 数组：在当前基本块分配并初始化
+            else {
+                IrBasicBlock block = IrBuilder.getCurrentBlock();
+                if (block != null) {
+                    String addr = "%" + symbolName;
+                    // 分配 [len x i32] 的局部数组
+                    block.addInstruction(addr + " = alloca [" + len + " x i32]");
+                    // 用编译期常量初始化每个元素
+                    for (int i = 0; i < len; i++) {
+                        String gep = IrFactory.getInstance().newTemp();
+                        block.addInstruction(
+                                gep + " = getelementptr [" + len + " x i32], [" + len + " x i32]* " + addr +
+                                        ", i32 0, i32 " + i
+                        );
+                        int v = (i < initValueList.size()) ? initValueList.get(i) : 0;
+                        block.addInstruction("store i32 " + v + ", i32* " + gep);
+                    }
+                }
             }
         }
         //不是数组

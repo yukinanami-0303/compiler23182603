@@ -8,10 +8,7 @@ import frontend.ast.func.FuncRParams;
 import frontend.ast.token.Ident;
 import midend.Ir.IrBasicBlock;
 import midend.Ir.IrFactory;
-import midend.Symbol.FuncSymbol;
-import midend.Symbol.Symbol;
-import midend.Symbol.SymbolManager;
-import midend.Symbol.SymbolTable;
+import midend.Symbol.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -234,7 +231,7 @@ public class UnaryExp extends Node {
         if (ident1 != null) {
             String funcName = ident1.GetTokenValue();
 
-            // 特殊内建：getint() —— 无参、返回 i32，且不会走下面通用逻辑
+            // 特殊内建：getint() —— 无参、返回 i32
             if ("getint".equals(funcName)) {
                 String res = IrFactory.getInstance().newTemp();
                 curBlock.addInstruction(res + " = call i32 @getint()");
@@ -252,21 +249,96 @@ public class UnaryExp extends Node {
                 retType = factory.getFuncRetType(funcName);  // "i32" 或 "void"
             }
 
-            // 生成实参表达式
-            java.util.List<String> argVals = new java.util.ArrayList<>();
+            // ===== 生成实参与类型（支持数组参数） =====
+            String argsStr = "";
             if (funcRParams1 != null) {
-                argVals = funcRParams1.generateArgsIr(curBlock);
-            }
+                // 尝试从符号表里拿到函数符号，看有没有形参表
+                Symbol sym = SymbolManager.GetSymbol(funcName);
+                if (sym instanceof FuncSymbol) {
+                    FuncSymbol funcSym = (FuncSymbol) sym;
+                    java.util.ArrayList<Symbol> formalList = funcSym.GetFormalParamList();
+                    java.util.ArrayList<Exp> realList = funcRParams1.GetRealParamList();
 
-            // 把实参拼成 "i32 v1, i32 v2, ..."
-            StringBuilder argsSb = new StringBuilder();
-            for (int i = 0; i < argVals.size(); i++) {
-                if (i > 0) {
-                    argsSb.append(", ");
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < formalList.size(); i++) {
+                        if (i > 0) {
+                            sb.append(", ");
+                        }
+                        Symbol formalSym = formalList.get(i);
+                        String formalType = formalSym.GetSymbolType();
+                        Exp realExp = realList.get(i);
+
+                        // 形参是 IntArray —— 需要传 i32*（数组指针）
+                        if ("IntArray".equals(formalType)) {
+                            String arrName = realExp.GetFirstToken().getValue();
+                            Symbol realSym = SymbolManager.GetSymbol(arrName);
+                            if (realSym instanceof ValueSymbol) {
+                                ValueSymbol vSym = (ValueSymbol) realSym;
+
+                                String argPtr;
+                                if (vSym.IsArrayParam()) {
+                                    // 形参数组：本身就是 i32*，直接传
+                                    argPtr = vSym.GetIrParamName();
+                                    if (argPtr == null || argPtr.isEmpty()) {
+                                        // 防御性兜底
+                                        argPtr = "%" + arrName;
+                                    }
+                                } else {
+                                    // 普通数组（全局 / 静态 / 局部 alloca [N x i32]）
+                                    int len = vSym.GetArrayLength();
+                                    if (len <= 0) {
+                                        len = 1;   // 防止 [-1 x i32] 之类的脏值
+                                    }
+
+                                    // 关键：优先用 ValueSymbol 上记录的 irName
+                                    String base = vSym.GetIrName();
+
+                                    // 如果还没有 irName（比如你没在 VarDef 里设置），退回原来的分类逻辑
+                                    if (base == null || base.isEmpty()) {
+                                        String symType = vSym.GetSymbolType();
+                                        if (symType.startsWith("Static")) {
+                                            base = "@__static_" + arrName;
+                                        } else if (vSym.IsGlobal()) {
+                                            base = "@" + arrName;
+                                        } else {
+                                            base = "%" + arrName;
+                                        }
+                                    }
+
+                                    String ptr = factory.newTemp();
+                                    curBlock.addInstruction(
+                                            ptr + " = getelementptr [" + len + " x i32], [" + len + " x i32]* "
+                                                    + base + ", i32 0, i32 0");
+                                    argPtr = ptr;
+                                }
+
+                                sb.append("i32* ").append(argPtr);
+                            } else {
+                                // 防御：如果没拿到 ValueSymbol，就退化为普通 i32
+                                String v = realExp.generateIr(curBlock);
+                                sb.append("i32 ").append(v);
+                            }
+                        }
+                        else {
+                            // 普通 int 形参：按 i32 表达式处理
+                            String v = realExp.generateIr(curBlock);
+                            sb.append("i32 ").append(v);
+                        }
+                    }
+                    argsStr = sb.toString();
+                } else {
+                    // 没有 FuncSymbol（如内建库函数），退回原来的简单逻辑
+                    java.util.List<String> argVals = funcRParams1.generateArgsIr(curBlock);
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < argVals.size(); i++) {
+                        if (i > 0) {
+                            sb.append(", ");
+                        }
+                        sb.append("i32 ").append(argVals.get(i));
+                    }
+                    argsStr = sb.toString();
                 }
-                argsSb.append("i32 ").append(argVals.get(i));
             }
-            String argsStr = argsSb.toString();
 
             // 按返回类型生成不同的 call
             if ("void".equals(retType)) {

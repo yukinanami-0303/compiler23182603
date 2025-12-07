@@ -170,7 +170,7 @@ public class VarDef extends Node{
                             // === 1) static 局部数组：隐藏全局变量 @__static_name ===
                             IrModule module = IrFactory.getModule();
                             String irName = "@__static_" + varName;
-
+                            vSym.SetIrName(irName);
                             ArrayList<Integer> initList = new ArrayList<>();
                             if (initVal1 != null) {               // 带初始化
                                 initList = initVal1.GetInitValueList(); // 题设保证 static 初始值编译期可求
@@ -195,6 +195,7 @@ public class VarDef extends Node{
                 if (this.symbol.GetSymbolType().equals("StaticInt")) {
                     IrModule module = IrFactory.getModule();
                     String irName = "@__static_" + symbolName;
+
                     int init = 0; // 规则 3：未赋值默认 0
                     module.addGlobalDef(irName + " = global i32 " + init);
                 }
@@ -217,7 +218,7 @@ public class VarDef extends Node{
                             // === 1) static 局部数组：隐藏全局变量 @__static_name ===
                             IrModule module = IrFactory.getModule();
                             String irName = "@__static_" + varName;
-
+                            vSym.SetIrName(irName);
                             ArrayList<Integer> initList = new ArrayList<>();
                             if (initVal1 != null) {               // 带初始化
                                 initList = initVal1.GetInitValueList(); // 题设保证 static 初始值编译期可求
@@ -269,15 +270,17 @@ public class VarDef extends Node{
 
                         // 只处理一维 int 数组
                         if (type.endsWith("Array")) {
-                            String varName = vSym.GetSymbolName();  // 若没有此方法，用你已有的名字字段
-                            int len = 0;
-                            len = constExp0.GetValue();
+                            String varName = vSym.GetSymbolName();
+                            int len = constExp0.GetValue();
                             vSym.SetArrayLength(len);
 
+                            boolean isGlobalArray = vSym.IsGlobal() || SymbolManager.IsGlobal();
+
                             // === 顶层普通数组：全局 [N x i32] ===
-                            if (symbol.IsGlobal()) {
+                            if (isGlobalArray) {
                                 IrModule module = IrFactory.getModule();
                                 String irName = "@" + varName;
+                                vSym.SetIrName(irName);
 
                                 ArrayList<Integer> initList = new ArrayList<>();
                                 if (initVal1 != null) {              // 有初始化
@@ -296,7 +299,8 @@ public class VarDef extends Node{
                             else {
                                 IrBasicBlock block = IrBuilder.getCurrentBlock();
                                 if (block != null) {
-                                    String addr = "%" + varName;
+                                    String addr = IrFactory.getInstance().newTemp();
+                                    vSym.SetIrName(addr);
                                     block.addInstruction(addr + " = alloca [" + len + " x i32]");
 
                                     // 局部数组的初始化：InitVal → '{' [Exp {',' Exp}] '}'
@@ -336,12 +340,15 @@ public class VarDef extends Node{
                         if (isGlobal) {
                             // 顶层的 "int g;" → @g = global i32 0
                             IrModule module = IrFactory.getModule();
-                            module.addGlobalDef("@" + varName + " = global i32 0");
+                            String irName = "@" + varName;
+                            module.addGlobalDef(irName + " = global i32 0");
+                            vSym.SetIrName(irName);
                         } else {
-                            // 函数内的 "int c;" → %c = alloca i32
+                            // 函数内的 "int c;" → alloca i32
                             IrBasicBlock block = IrBuilder.getCurrentBlock();
                             if (block != null) {
-                                String addr = "%" + varName;
+                                String addr = IrFactory.getInstance().newTemp();  // 不再用 "%varName"
+                                vSym.SetIrName(addr);
                                 block.addInstruction(addr + " = alloca i32");
                             }
                         }
@@ -364,19 +371,20 @@ public class VarDef extends Node{
 
                         // 只处理一维 int 数组
                         if (type.endsWith("Array")) {
-                            String varName = vSym.GetSymbolName();  // 若没有此方法，用你已有的名字字段
-                            int len = 0;
-                            len = constExp1.GetValue();
+                            String varName = vSym.GetSymbolName();
+                            int len = constExp1.GetValue();
                             vSym.SetArrayLength(len);
 
+                            boolean isGlobalArray = vSym.IsGlobal() || SymbolManager.IsGlobal();
+
                             // === 顶层普通数组：全局 [N x i32] ===
-                            if (symbol.IsGlobal()) {
+                            if (isGlobalArray) {
                                 IrModule module = IrFactory.getModule();
                                 String irName = "@" + varName;
-
+                                vSym.SetIrName(irName);
                                 ArrayList<Integer> initList = new ArrayList<>();
-                                if (initVal1 != null) {              // 有初始化
-                                    initList = initVal1.GetInitValueList(); // 题设保证全局初始值是常量
+                                if (initVal1 != null) {
+                                    initList = initVal1.GetInitValueList();
                                 }
 
                                 StringBuilder elems = new StringBuilder();
@@ -391,7 +399,8 @@ public class VarDef extends Node{
                             else {
                                 IrBasicBlock block = IrBuilder.getCurrentBlock();
                                 if (block != null) {
-                                    String addr = "%" + varName;
+                                    String addr = IrFactory.getInstance().newTemp();
+                                    vSym.SetIrName(addr);
                                     block.addInstruction(addr + " = alloca [" + len + " x i32]");
 
                                     // 局部数组的初始化：InitVal → '{' [Exp {',' Exp}] '}'
@@ -425,7 +434,9 @@ public class VarDef extends Node{
                 // ===== IR：变量声明 =====
                 if (this.symbol instanceof ValueSymbol) {
                     ValueSymbol vSym = (ValueSymbol) this.symbol;
-
+                    if (vSym.GetSymbolType().endsWith("Array")) {
+                        return;
+                    }
                     // static 修饰的变量：只初始化一次 → 视作“全局存储”（只影响 IR）
                     if (this.isStatic) {
                         vSym.SetIsGlobal(true);
@@ -434,14 +445,10 @@ public class VarDef extends Node{
                     boolean isGlobal = vSym.IsGlobal();
                     String varName = vSym.GetSymbolName();
 
-                    // 如果你有 constExp1 这个字段，说明这是标量（非数组）
-                    // 这里本身就在“非数组”分支里，所以可以直接处理标量
                     if (isGlobal) {
                         // 全局 / static 变量：生成
-                        //   @a = global i32 <init>
                         int init = 0;
                         if (this.initVal1 != null) {
-                            // 确保已经实现 InitVal.GetInitValueList()
                             initValueList = this.initVal1.GetInitValueList();
                         }
                         if (initValueList != null && !initValueList.isEmpty()) {
@@ -449,13 +456,16 @@ public class VarDef extends Node{
                         }
 
                         IrModule module = IrFactory.getModule();
-                        module.addGlobalDef("@" + varName + " = global i32 " + init);
+                        String irName = "@" + varName;          // 如需区分 static，可以用 "@__static_"+varName
+                        module.addGlobalDef(irName + " = global i32 " + init);
+                        vSym.SetIrName(irName);
                     }
                     else {
                         // 普通局部变量：alloca + (可选) store 初始化
                         IrBasicBlock block = IrBuilder.getCurrentBlock();
                         if (block != null) {
-                            String addr = "%" + varName;
+                            String addr = IrFactory.getInstance().newTemp();
+                            vSym.SetIrName(addr);
                             block.addInstruction(addr + " = alloca i32");
                             if (this.initVal1 != null) {
                                 String value = this.initVal1.generateScalarIr(block);

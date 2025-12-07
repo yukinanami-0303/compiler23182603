@@ -4,7 +4,9 @@ import frontend.Token;
 import frontend.ast.Node;
 import frontend.ast.SyntaxType;
 import midend.Ir.IrBasicBlock;
+import midend.Ir.IrBuilder;
 import midend.Ir.IrFactory;
+import midend.Ir.IrFunction;
 
 import java.io.IOException;
 
@@ -129,6 +131,43 @@ public class LAndExp extends Node{
             curBlock.addInstruction(zext + " = zext i1 " + andRes + " to i32");
 
             return zext;
+        }
+    }
+
+    public void generateCondBr(IrBasicBlock curBlock,
+                               IrBasicBlock trueBlock,
+                               IrBasicBlock falseBlock) {
+        IrFactory factory = IrFactory.getInstance();
+
+        if (this.Utype == 0) {
+            // 基本情形：LAndExp -> EqExp
+            // 这里不再展开成 and，而是直接根据“是否为 0”跳转
+            String val = eqExp0.generateIr(curBlock);
+            String cond = factory.newTemp();
+            curBlock.addInstruction(cond + " = icmp ne i32 " + val + ", 0");
+            curBlock.addInstruction("br i1 " + cond
+                    + ", label %" + trueBlock.getLabel()
+                    + ", label %" + falseBlock.getLabel());
+        } else {
+            // 递归情形：LAndExp -> LAndExp '&&' EqExp
+            // 左边：lAndExp1   右边：eqExp1
+            IrFunction curFunc = IrBuilder.getCurrentFunction();
+            // 只有左边为真时才会到达 rhsBlock
+            IrBasicBlock rhsBlock = factory.createBasicBlock(curFunc, "land_rhs");
+
+            // 先对左边生成短路控制流：
+            //   左真 -> rhsBlock
+            //   左假 -> falseBlock
+            lAndExp1.generateCondBr(curBlock, rhsBlock, falseBlock);
+
+            // 在 rhsBlock 中生成右边 EqExp 的判断
+            IrBuilder.setCurrentBlock(rhsBlock);
+            String rightVal = eqExp1.generateIr(rhsBlock);
+            String rightCond = factory.newTemp();
+            rhsBlock.addInstruction(rightCond + " = icmp ne i32 " + rightVal + ", 0");
+            rhsBlock.addInstruction("br i1 " + rightCond
+                    + ", label %" + trueBlock.getLabel()
+                    + ", label %" + falseBlock.getLabel());
         }
     }
     public LAndExp(){
