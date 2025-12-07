@@ -48,6 +48,17 @@ public class Cond extends Node{
             lOrExp.generateCondBr(curBlock, trueBlock, falseBlock);
         }
     }
+    /**
+     * 条件上下文（if / for / while）专用的短路接口：
+     * 从 curBlock 出发，根据表达式结果跳到 trueBlock 或 falseBlock。
+     */
+    public void generateShortCircuit(IrBasicBlock curBlock,
+                                     IrBasicBlock trueBlock,
+                                     IrBasicBlock falseBlock) {
+        if (lOrExp != null) {
+            lOrExp.generateShortCircuit(curBlock, trueBlock, falseBlock);
+        }
+    }
 
 
     public Cond(){

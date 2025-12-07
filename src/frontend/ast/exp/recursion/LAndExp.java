@@ -170,6 +170,57 @@ public class LAndExp extends Node{
                     + ", label %" + falseBlock.getLabel());
         }
     }
+
+    /**
+     * 逻辑与在“条件上下文”中的短路求值：
+     *   - 左侧为假：直接跳 falseBlock
+     *   - 左侧为真：进入中间块计算右侧，再根据结果跳 trueBlock / falseBlock
+     */
+    public void generateShortCircuit(IrBasicBlock curBlock,
+                                     IrBasicBlock trueBlock,
+                                     IrBasicBlock falseBlock) {
+        IrFactory factory = IrFactory.getInstance();
+        IrFunction func   = IrBuilder.getCurrentFunction();
+
+        if (func == null) {
+            // 防御性兜底：非 IR 阶段不应被调用
+            String val  = this.generateIr(curBlock);
+            String cond = factory.newTemp();
+            curBlock.addInstruction(cond + " = icmp ne i32 " + val + ", 0");
+            curBlock.addInstruction("br i1 " + cond
+                    + ", label %" + trueBlock.getLabel()
+                    + ", label %" + falseBlock.getLabel());
+            return;
+        }
+
+        if (this.Utype == 0) {
+            // 基础情况：LAndExp -> EqExp
+            String val  = eqExp0.generateIr(curBlock);
+            String cond = factory.newTemp();
+            curBlock.addInstruction(cond + " = icmp ne i32 " + val + ", 0");
+            curBlock.addInstruction("br i1 " + cond
+                    + ", label %" + trueBlock.getLabel()
+                    + ", label %" + falseBlock.getLabel());
+        } else {
+            // 递归情况：LAndExp -> LAndExp '&&' EqExp
+            // (A && B)：
+            //   A 为假 -> falseBlock
+            //   A 为真 -> 进入 rhsBlock 再计算 B
+            IrBasicBlock rhsBlock = factory.createBasicBlock(func, "land_rhs");
+
+            // 左侧 A：真 -> rhsBlock；假 -> falseBlock
+            lAndExp1.generateShortCircuit(curBlock, rhsBlock, falseBlock);
+
+            // 右侧 B：在 rhsBlock 中计算一次 EqExp，然后根据结果跳转
+            String val  = eqExp1.generateIr(rhsBlock);
+            String cond = factory.newTemp();
+            rhsBlock.addInstruction(cond + " = icmp ne i32 " + val + ", 0");
+            rhsBlock.addInstruction("br i1 " + cond
+                    + ", label %" + trueBlock.getLabel()
+                    + ", label %" + falseBlock.getLabel());
+        }
+    }
+
     public LAndExp(){
         super(SyntaxType.LAND_EXP);
     }

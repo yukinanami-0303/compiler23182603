@@ -22,6 +22,7 @@ import static frontend.TokenStream.*;
 public class VarDef extends Node{
     //VarDef → Ident [ '[' ConstExp ']' ] | Ident [ '[' ConstExp ']' ] '=' InitVal
     public boolean isStatic=false;
+    private static int staticIdCounter = 0;
     private ValueSymbol symbol;
     private int Utype;
     private Ident ident0=null;
@@ -169,7 +170,7 @@ public class VarDef extends Node{
                             vSym.SetArrayLength(len);
                             // === 1) static 局部数组：隐藏全局变量 @__static_name ===
                             IrModule module = IrFactory.getModule();
-                            String irName = "@__static_" + varName;
+                            String irName = "@__static_" + varName + "." + staticIdCounter++;
                             vSym.SetIrName(irName);
                             ArrayList<Integer> initList = new ArrayList<>();
                             if (initVal1 != null) {               // 带初始化
@@ -191,14 +192,21 @@ public class VarDef extends Node{
                     this.symbol=new ValueSymbol(symbolName,"StaticInt");
                 }
                 SymbolManager.AddSymbol(this.symbol, ident0.GetTokenLineNumber());
+
                 // ===== IR：static 标量，无初值 → 0 =====
-                if (this.symbol.GetSymbolType().equals("StaticInt")) {
+                if (this.symbol instanceof ValueSymbol
+                        && this.symbol.GetSymbolType().equals("StaticInt")) {
+                    ValueSymbol vSym = (ValueSymbol) this.symbol;
                     IrModule module = IrFactory.getModule();
-                    String irName = "@__static_" + symbolName;
+
+                    // 为每个 static a 生成唯一名字，比如 @__static_a.0, @__static_a.1, ...
+                    String irName = "@__static_" + symbolName + "." + staticIdCounter++;
+                    vSym.SetIrName(irName);
 
                     int init = 0; // 规则 3：未赋值默认 0
                     module.addGlobalDef(irName + " = global i32 " + init);
                 }
+
             }
             else{//赋值
                 String symbolName=ident1.GetTokenValue();
@@ -217,7 +225,7 @@ public class VarDef extends Node{
                             vSym.SetArrayLength(len);
                             // === 1) static 局部数组：隐藏全局变量 @__static_name ===
                             IrModule module = IrFactory.getModule();
-                            String irName = "@__static_" + varName;
+                            String irName = "@__static_" + varName + "." + staticIdCounter++;
                             vSym.SetIrName(irName);
                             ArrayList<Integer> initList = new ArrayList<>();
                             if (initVal1 != null) {               // 带初始化
@@ -239,12 +247,15 @@ public class VarDef extends Node{
                 }
                 SymbolManager.AddSymbol(this.symbol, ident1.GetTokenLineNumber());
                 // ===== IR：static 标量，有初值 =====
-                if (this.symbol.GetSymbolType().equals("StaticInt")) {
+                if (this.symbol instanceof ValueSymbol
+                        && this.symbol.GetSymbolType().equals("StaticInt")) {
+                    ValueSymbol vSym = (ValueSymbol) this.symbol;
                     IrModule module = IrFactory.getModule();
-                    String irName = "@__static_" + symbolName;
+
+                    String irName = "@__static_" + symbolName + "." + staticIdCounter++;
+                    vSym.SetIrName(irName);
 
                     int init = 0;
-                    // 初值必须是编译期常量，直接用 InitVal.GetInitValueList()
                     if (this.initVal1 != null) {
                         ArrayList<Integer> initList = this.initVal1.GetInitValueList();
                         if (initList != null && !initList.isEmpty()) {

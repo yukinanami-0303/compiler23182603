@@ -160,6 +160,47 @@ public class LOrExp extends Node{
         }
     }
 
+
+    /**
+     * 逻辑或在“条件上下文”中的短路求值：
+     *   - 左侧为真：直接跳 trueBlock
+     *   - 左侧为假：进入中间块计算右侧，再根据结果跳 trueBlock / falseBlock
+     */
+    public void generateShortCircuit(IrBasicBlock curBlock,
+                                     IrBasicBlock trueBlock,
+                                     IrBasicBlock falseBlock) {
+        IrFactory factory = IrFactory.getInstance();
+        IrFunction func   = IrBuilder.getCurrentFunction();
+
+        if (func == null) {
+            // 防御性兜底：非 IR 阶段不应被调用
+            String val  = this.generateIr(curBlock);
+            String cond = factory.newTemp();
+            curBlock.addInstruction(cond + " = icmp ne i32 " + val + ", 0");
+            curBlock.addInstruction("br i1 " + cond
+                    + ", label %" + trueBlock.getLabel()
+                    + ", label %" + falseBlock.getLabel());
+            return;
+        }
+
+        if (this.Utype == 0) {
+            // 基础情况：LOrExp -> LAndExp
+            lAndExp0.generateShortCircuit(curBlock, trueBlock, falseBlock);
+        } else {
+            // 递归情况：LOrExp -> LOrExp '||' LAndExp
+            // (A || B)：
+            //   A 为真 -> trueBlock
+            //   A 为假 -> 进入 rhsBlock 再计算 B
+            IrBasicBlock rhsBlock = factory.createBasicBlock(func, "lor_rhs");
+
+            // 左侧 A：真 -> trueBlock；假 -> rhsBlock
+            lOrExp1.generateShortCircuit(curBlock, trueBlock, rhsBlock);
+
+            // 右侧 B：在 rhsBlock 中做完整条件求值
+            lAndExp1.generateShortCircuit(rhsBlock, trueBlock, falseBlock);
+        }
+    }
+
     public LOrExp(){
         super(SyntaxType.LOR_EXP);
     }

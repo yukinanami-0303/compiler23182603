@@ -139,13 +139,14 @@ public class LVal extends Node {
             // ==== 标量：没有下标，沿用原来的规则 ====
             // 包括普通 int、const int、以及“整个数组名”这种情况（数组但没有下标）
             if (!isArray || this.exp == null) {
-                // 优先使用在 VarDef / FuncFParam 里记录的 irName
-                String irName = valueSymbol.GetIrName();
-                if (irName != null && !irName.isEmpty()) {
-                    return irName;
+                // 优先使用符号上记录的 IR 名（static / 全局 / alloca 均可）
+                if (valueSymbol instanceof ValueSymbol) {
+                    String irName = ((ValueSymbol) valueSymbol).GetIrName();
+                    if (irName != null && !irName.isEmpty()) {
+                        return irName;
+                    }
                 }
 
-                // 兜底
                 if (symbolType.startsWith("Static")) {
                     return "@__static_" + identName;
                 } else if (valueSymbol.IsGlobal()) {
@@ -154,6 +155,7 @@ public class LVal extends Node {
                     return "%" + identName;
                 }
             }
+
 
             // ==== 数组元素：a[Exp] ====
             String idx = this.exp.generateIr(curBlock);   // 下标值（i32）
@@ -183,19 +185,22 @@ public class LVal extends Node {
                 len = 1;
             }
 
-            String base;
-            String irName = valueSymbol.GetIrName();
-            if (irName != null && !irName.isEmpty()) {
-                base = irName;
-            } else {
-                if (symbolType.startsWith("Static")) {
-                    base = "@__static_" + identName;
-                } else if (valueSymbol.IsGlobal()) {
-                    base = "@" + identName;
-                } else {
-                    base = "%" + identName;
-                }
+            String base = null;
+            // 若在 VarDef / ConstDef 中已经为该符号设置了 irName（static / 全局 / alloca）
+            String recorded = null;
+            if (valueSymbol instanceof ValueSymbol) {
+                recorded = ((ValueSymbol) valueSymbol).GetIrName();
             }
+            if (recorded != null && !recorded.isEmpty()) {
+                base = recorded;
+            } else if (symbolType.startsWith("Static")) {
+                base = "@__static_" + identName;
+            } else if (valueSymbol.IsGlobal()) {
+                base = "@" + identName;
+            } else {
+                base = "%" + identName;
+            }
+
 
             String ptr = IrFactory.getInstance().newTemp();
             curBlock.addInstruction(
