@@ -91,13 +91,10 @@ public class IrFunction {
         return block;
     }
 
-    /**
-     * 生成当前函数的 LLVM IR 文本
-     */
     public String emit() {
         StringBuilder sb = new StringBuilder();
 
-        // 函数头
+        // ===== 函数头 =====
         sb.append("define ")
                 .append(retType)
                 .append(" @")
@@ -112,12 +109,110 @@ public class IrFunction {
         }
         sb.append(") {\n");
 
-        // 函数体
+        // ===== 第一步：先收集所有被 br 指令引用到的 label =====
+        java.util.Set<String> usedLabels = new java.util.HashSet<>();
+
         for (IrBasicBlock block : basicBlocks) {
+            java.util.List<String> insts = block.getInstructions();
+            if (insts == null) {
+                continue;
+            }
+            for (String inst : insts) {
+                if (inst == null) {
+                    continue;
+                }
+                String trim = inst.trim();
+                // 只关心 br 开头的指令
+                if (!trim.startsWith("br ")) {
+                    continue;
+                }
+
+                // 形如：
+                //   br label %xxx
+                //   br i1 %t, label %xxx, label %yyy
+                int idx = trim.indexOf("label %");
+                while (idx >= 0) {
+                    int start = idx + "label %".length();
+                    int end = start;
+                    while (end < trim.length()) {
+                        char ch = trim.charAt(end);
+                        if (Character.isLetterOrDigit(ch) || ch == '.' || ch == '_') {
+                            end++;
+                        } else {
+                            break;
+                        }
+                    }
+                    if (end > start) {
+                        String label = trim.substring(start, end);
+                        usedLabels.add(label);
+                    }
+                    idx = trim.indexOf("label %", end);
+                }
+            }
+        }
+
+        // ===== 第二步：给所有“需要存在的 block”补上终结指令 =====
+        for (IrBasicBlock block : basicBlocks) {
+            java.util.List<String> insts = block.getInstructions();
+            if (insts == null) {
+                continue;
+            }
+
+            // 空并且从来没有 br 跳到它的 block，会在下面直接被过滤掉
+            if (insts.isEmpty() && !usedLabels.contains(block.getLabel())) {
+                continue;
+            }
+
+            // 找到最后一条“非空指令”
+            int lastIdx = insts.size() - 1;
+            while (lastIdx >= 0) {
+                String s = insts.get(lastIdx);
+                if (s != null && !s.trim().isEmpty()) {
+                    break;
+                }
+                lastIdx--;
+            }
+
+            if (lastIdx < 0) {
+                // 说明这是一个“被跳到但逻辑上完全空”的块，需要至少有个 ret
+                if ("void".equals(retType)) {
+                    insts.add("  ret void");
+                } else {
+                    insts.add("  ret " + retType + " 0");
+                }
+                continue;
+            }
+
+            String last = insts.get(lastIdx).trim();
+            // 如果已经以 br / ret 结尾，就不用补
+            if (last.startsWith("br ") || last.startsWith("ret ")) {
+                continue;
+            }
+
+            // 否则补一个默认 ret
+            if ("void".equals(retType)) {
+                insts.add("  ret void");
+            } else {
+                insts.add("  ret " + retType + " 0");
+            }
+        }
+
+        // ===== 第三步：输出 block，继续过滤“空死块” =====
+        for (IrBasicBlock block : basicBlocks) {
+            java.util.List<String> insts = block.getInstructions();
+            boolean isEmpty = (insts == null || insts.isEmpty());
+
+            // 完全空、且没有任何 br 跳到它的 block，认为是死块，直接不打印
+            if (isEmpty && !usedLabels.contains(block.getLabel())) {
+                continue;
+            }
+
             sb.append(block.emit());
         }
 
         sb.append("}\n");
         return sb.toString();
     }
+
+
 }

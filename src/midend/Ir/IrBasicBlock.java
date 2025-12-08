@@ -36,9 +36,6 @@ public class IrBasicBlock {
         }
     }
 
-
-
-
     /**
      * 生成当前基本块的 LLVM IR 文本
      */
