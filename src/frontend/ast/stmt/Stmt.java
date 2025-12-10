@@ -621,13 +621,25 @@ public class Stmt extends Node{
         }
 
         //'if' '(' Cond ')' Stmt [ 'else' Stmt ]      3
-        else if(this.Utype==3){
+        else if (this.Utype == 3) {
+            // 先做条件的语义检查
             this.cond3.visit();
 
-            // ===== IR：if-else 语句（使用短路求值）=====
+            // 当前不在函数里：只做语义分析，不生成 IR
             IrBasicBlock curBlock = IrBuilder.getCurrentBlock();
             IrFunction   curFunc  = IrBuilder.getCurrentFunction();
-            IrFactory    factory  = IrFactory.getInstance();
+            if (curBlock == null || curFunc == null) {
+                if (this.stmt31 != null) {
+                    this.stmt31.visit();
+                }
+                if (this.stmt32 != null) {
+                    this.stmt32.visit();
+                }
+                return;
+            }
+
+            // ===== IR：if-else 语句（使用短路求值）=====
+            IrFactory factory = IrFactory.getInstance();
 
             // 创建 then / end / 可选 else 基本块
             IrBasicBlock thenBlock = factory.createBasicBlock(curFunc, "if_then");
@@ -642,28 +654,34 @@ public class Stmt extends Node{
                 falseTarget = endBlock;
             }
 
-            // 条件：直接用 Cond 的短路接口，从 curBlock 跳到 thenBlock / falseTarget
+            // Cond 负责从 curBlock 跳到 thenBlock / falseTarget（短路求值）
             this.cond3.generateShortCircuit(curBlock, thenBlock, falseTarget);
 
-            // then 分支
+            // ===== then 分支 =====
             IrBuilder.setCurrentBlock(thenBlock);
-            this.stmt31.visit();
-            if (!blockEndsWithTerminator(thenBlock)) {
-                thenBlock.addInstruction("br label %" + endBlock.getLabel());
+            if (this.stmt31 != null) {
+                this.stmt31.visit();
+            }
+            // 关键：then 分支真正的“尾块”是 visit 之后的 currentBlock
+            IrBasicBlock lastThenBlock = IrBuilder.getCurrentBlock();
+            if (!blockEndsWithTerminator(lastThenBlock)) {
+                lastThenBlock.addInstruction("br label %" + endBlock.getLabel());
             }
 
-            // else 分支（如果有）
+            // ===== else 分支（如果有）=====
             if (this.stmt32 != null) {
                 IrBuilder.setCurrentBlock(elseBlock);
                 this.stmt32.visit();
-                if (!blockEndsWithTerminator(elseBlock)) {
-                    elseBlock.addInstruction("br label %" + endBlock.getLabel());
+                IrBasicBlock lastElseBlock = IrBuilder.getCurrentBlock();
+                if (!blockEndsWithTerminator(lastElseBlock)) {
+                    lastElseBlock.addInstruction("br label %" + endBlock.getLabel());
                 }
             }
 
-            // 合流到 endBlock
+            // ===== 合流：if 之后的语句从 endBlock 开始生成 =====
             IrBuilder.setCurrentBlock(endBlock);
         }
+
 
 
 

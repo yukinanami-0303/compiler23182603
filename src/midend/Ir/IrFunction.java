@@ -158,7 +158,7 @@ public class IrFunction {
                 continue;
             }
 
-            // 空并且从来没有 br 跳到它的 block，会在下面直接被过滤掉
+            // 空并且从来没有 br 跳到它的 block，会在下面直接被过滤掉，这里不用管
             if (insts.isEmpty() && !usedLabels.contains(block.getLabel())) {
                 continue;
             }
@@ -178,6 +178,7 @@ public class IrFunction {
                 if ("void".equals(retType)) {
                     insts.add("  ret void");
                 } else {
+                    // 本实验一般只有 i32 或 void，非 void 的默认补 0
                     insts.add("  ret " + retType + " 0");
                 }
                 continue;
