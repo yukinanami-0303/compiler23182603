@@ -788,9 +788,6 @@ public class Stmt extends Node{
                 if (block != null && breakTarget != null) {
                     // 直接跳转到当前循环的 break 目标基本块
                     block.addInstruction("br label %" + breakTarget.getLabel());
-                } else if (block != null) {
-                    // TODO: for 循环的 IR 尚未实现，这里暂时不生成 break 的跳转 IR
-                    // 后续在 for 的 IR 里补上 IrBuilder.pushLoop(...) 后，此处就会生效。
                 }
             }
         }
@@ -806,9 +803,6 @@ public class Stmt extends Node{
                 if (block != null && contTarget != null) {
                     // 跳转到当前循环的 continue 目标基本块
                     block.addInstruction("br label %" + contTarget.getLabel());
-                } else if (block != null) {
-                    // TODO: for 循环的 IR 尚未实现，这里暂时不生成 continue 的跳转 IR
-                    // 后续在 for 的 IR 里补上 IrBuilder.pushLoop(...) 后，此处就会生效。
                 }
             }
         }
