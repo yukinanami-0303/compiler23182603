@@ -21,6 +21,15 @@ public class SymbolManager {
         currentSymbolTable = rootSymbolTable;
     }
 
+    /**
+     * 第二遍遍历 IR 前调用：复位所有 SymbolTable 的子表遍历游标 index
+     */
+    public static void ResetSonTableIterators() {
+        if (rootSymbolTable != null) {
+            rootSymbolTable.ResetSonIteratorRecursively();
+        }
+    }
+
     public static boolean IsGlobal() {
         return currentSymbolTable == rootSymbolTable;
     }

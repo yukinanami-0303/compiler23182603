@@ -38,16 +38,18 @@ public class Compiler {
             OutputHelper.initialize("symbol.txt");
             GenerateSymbolTable();
             OutputHelper.close();
-
+            if (ErrorHandler.hasErrors()) {
+                // 根据是否有错误选择输出
+                ErrorHandler.writeErrorsToFile("error.txt");
+                return; // 有错：严格不进 IR 阶段
+            }
             //LLVM输出
-
+            midend.MidEnd.GenerateLLVMIR();
             OutputHelper.initialize("llvm_ir.txt");
             OutputHelper.write(midend.Ir.IrGenerator.generate());
             OutputHelper.close();
 
 
-            // 根据是否有错误选择输出
-            ErrorHandler.writeErrorsToFile("error.txt");
 
 
         } catch (Exception e) {

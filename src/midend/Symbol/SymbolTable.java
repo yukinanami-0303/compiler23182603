@@ -16,7 +16,7 @@ public class SymbolTable {
     private final ArrayList<SymbolTable> sonTables;
 
     public SymbolTable(int depth, SymbolTable fatherTable) {
-        this.depth = depth;//当前作用域标号
+        this.depth = depth;
         this.index = -1;
 
         this.symbolList = new ArrayList<>();
@@ -25,6 +25,7 @@ public class SymbolTable {
         this.fatherTable = fatherTable;
         this.sonTables = new ArrayList<>();
     }
+
     public Symbol GetSymbol(String symbolName) {
         return this.symbolTable.get(symbolName);
     }
@@ -42,19 +43,31 @@ public class SymbolTable {
         if (!this.symbolTable.containsKey(symbolName)) {
             this.symbolList.add(symbol);
             this.symbolTable.put(symbolName, symbol);
-        }
-        // 当前层有相同名，重定义，报错为b
-        else {
-            addError(line,"b");
+        } else {
+            addError(line, "b");
         }
     }
+
     public SymbolTable GetNextSonTable() {
         return this.sonTables.get(++index);
     }
+
+    /**
+     * 第二遍遍历前复位“子表遍历游标”，保证 GoToSonSymbolTable 从第 0 个儿子开始走
+     */
+    public void ResetSonIteratorRecursively() {
+        this.index = -1;
+        for (SymbolTable son : sonTables) {
+            son.ResetSonIteratorRecursively();
+        }
+    }
+
     public String OutputSymbolTable() {
         StringBuilder stringBuilder = new StringBuilder();
         for (Symbol symbol : symbolList) {
-            stringBuilder.append(depth + " " + symbol.GetSymbolName() + " " + symbol.GetSymbolType() + "\n");
+            stringBuilder.append(depth).append(" ")
+                    .append(symbol.GetSymbolName()).append(" ")
+                    .append(symbol.GetSymbolType()).append("\n");
         }
         for (SymbolTable sonTable : sonTables) {
             stringBuilder.append(sonTable.OutputSymbolTable());

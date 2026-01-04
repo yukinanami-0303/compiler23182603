@@ -1,23 +1,24 @@
 package midend.Ir;
 
-import frontend.ast.CompUnit;
-
-import static frontend.Parser.GetAstTree;
-
 /**
- * 把 AST 转成 LLVM IR 的后端入口。
- * 真正的“造 IR”逻辑嵌在各个 AST 节点的 visit / generateIr 方法里，
- * 这里只负责把整个 IrModule 转成字符串返回。
+ * 把 IrModule 转成 LLVM IR 文本的后端入口。
+ * 真正“造 IR”的逻辑在 AST 的 visit 中（第二遍 IR 阶段）。
  */
 public class IrGenerator {
 
     /**
-     * 入口：返回 LLVM IR 文本（由 Compiler 调用，再写入 llvm_ir.txt）
+     * 第二遍 IR 开始前，统一清空 IR 全局状态
+     */
+    public static void reset() {
+        IrFactory.getInstance().reset();
+        IrBuilder.reset();
+    }
+
+    /**
+     * 输出 LLVM IR 文本（由 Compiler 调用写入 llvm_ir.txt）
+     * 注意：必须在 MidEnd.GenerateLLVMIR() 完成后调用
      */
     public static String generate() {
-        // 这里不再重置，也不再重新遍历 AST，
-        // IR 在 MidEnd.GenerateSymbolTable 时就已经构建完了。
-        CompUnit root = GetAstTree();  // 暂时不用，但保留以便以后扩展
         IrModule module = IrFactory.getModule();
         return module.emit();
     }
