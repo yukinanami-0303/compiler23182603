@@ -40,9 +40,12 @@ public class Compiler {
             OutputHelper.close();
 
             //LLVM输出
+
             OutputHelper.initialize("llvm_ir.txt");
             OutputHelper.write(midend.Ir.IrGenerator.generate());
             OutputHelper.close();
+
+
             // 根据是否有错误选择输出
             ErrorHandler.writeErrorsToFile("error.txt");
 
