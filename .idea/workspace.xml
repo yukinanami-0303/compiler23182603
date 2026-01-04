@@ -6,7 +6,12 @@
   <component name="ChangeListManager">
     <list default="true" id="34581d93-9a3c-4833-877d-bebc6674857c" name="更改" comment="Init">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Compiler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Compiler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/frontend/ast/def/ConstDef.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/def/ConstDef.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/frontend/ast/def/VarDef.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/def/VarDef.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/frontend/ast/func/FuncDef.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/func/FuncDef.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/frontend/ast/func/FuncFParam.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/func/FuncFParam.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/frontend/ast/func/MainFuncDef.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/func/MainFuncDef.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/frontend/ast/stmt/Stmt.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/stmt/Stmt.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/midend/MidEnd.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/midend/MidEnd.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -141,7 +146,14 @@
       <option name="project" value="LOCAL" />
       <updated>1767522296168</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="Init">
+      <created>1767531083744</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1767531083744</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">

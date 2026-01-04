@@ -4,6 +4,7 @@ import frontend.Token;
 import frontend.ast.Node;
 import frontend.ast.SyntaxType;
 import frontend.ast.block.Block;
+import midend.Ir.IrBasicBlock;
 import midend.Ir.IrBuilder;
 import midend.Symbol.SymbolManager;
 
@@ -74,22 +75,56 @@ public class MainFuncDef extends Node{
     }
 
 
-    //MainFuncDef → 'int' 'main' '(' ')' Block
+    // MainFuncDef → 'int' 'main' '(' ')' Block
     @Override
-    public void visit(){
-        IrBuilder.enterFunction("i32", "main");
-        SymbolManager.CreateSonSymbolTable();//遇到Block创建子符号表并进入子符号表
+    public void visit() {
+        if (midend.MidEnd.isSemantic()) {
+            visitSemantic();
+        } else {
+            visitIR();
+        }
+    }
+
+    private void visitSemantic() {
+        // 语义阶段：不生成 IR，只建符号表/检查错误
+        SymbolManager.CreateSonSymbolTable(); // main 的 Block 作用域
+        SymbolManager.EnterFunc("int");
+
         block.visit();
-        if(!this.block.haveReturnStmt()){//检查return的缺失
-            addError(this.block.GetRbraceLineNumber(),"g");
-            if (IrBuilder.getCurrentBlock() != null) {
-                IrBuilder.getCurrentBlock().addInstruction("ret i32 0");
+
+        SymbolManager.LeaveFunc();
+
+        if (!this.block.haveReturnStmt()) { // 缺 return（g）
+            addError(this.block.GetRbraceLineNumber(), "g");
+        }
+
+        SymbolManager.GoToFatherSymbolTable();
+    }
+
+    private void visitIR() {
+        // IR 阶段：生成 main 函数 IR，并复用第一遍的符号表树
+        IrBuilder.enterFunction("i32", "main");
+
+        // 进入第一遍已经创建好的 main-block 子作用域
+        SymbolManager.GoToSonSymbolTable();
+        SymbolManager.EnterFunc("int");
+
+        block.visit();
+
+        SymbolManager.LeaveFunc();
+
+        // 正确程序应当有 return；兜底补 ret i32 0
+        if (!this.block.haveReturnStmt()) {
+            IrBasicBlock cur = IrBuilder.getCurrentBlock();
+            if (cur != null) {
+                cur.addInstruction("ret i32 0");
             }
         }
-        SymbolManager.GoToFatherSymbolTable();
 
+        SymbolManager.GoToFatherSymbolTable();
         IrBuilder.leaveFunction();
     }
+
 
     public MainFuncDef(){
         super(SyntaxType.MAIN_FUNC_DEF);

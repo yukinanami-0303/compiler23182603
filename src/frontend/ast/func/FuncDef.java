@@ -93,82 +93,127 @@ public class FuncDef extends Node {
 
 
     //FuncDef → FuncType Ident '(' [FuncFParams] ')' Block  b,g
+
     @Override
-    public void visit(){
-        String symbolName=ident.GetTokenValue();
-        if(this.funcType.GetFuncType().equals("int")){//int类型函数
-            this.symbol=new FuncSymbol(symbolName,"IntFunc");
+    public void visit() {
+        if (midend.MidEnd.isSemantic()) {
+            visitSemantic();
+        } else {
+            visitIR();
+        }
+    }
+
+    private void visitSemantic() {
+        String symbolName = ident.GetTokenValue();
+
+        if (this.funcType.GetFuncType().equals("int")) {
+            // ===== 语义：加入符号表 =====
+            this.symbol = new FuncSymbol(symbolName, "IntFunc");
             SymbolManager.AddSymbol(this.symbol, this.ident.GetTokenLineNumber());
-            //因为函数形参表的作用域是函数名作用域的子作用域
 
-            String funcName = ident.GetTokenValue();          // 函数名
-            // IR：进入一个新函数（createFunction + entry 基本块）
-            IrBuilder.enterFunction("i32", funcName);
+            // ===== 语义：函数形参作用域是函数名作用域的子作用域 =====
+            SymbolManager.CreateSonSymbolTable();
 
-            SymbolManager.CreateSonSymbolTable();//所以创建子符号表并进入子符号表
-            if(this.funcFParams!=null){//有参数
+            if (this.funcFParams != null) {
                 this.funcFParams.visit();
                 this.symbol.SetFormalParamList(this.funcFParams.GetFormalParamList());
             }
-
-
 
             SymbolManager.EnterFunc("int");
 
-
-
             block.visit();
-
 
             SymbolManager.LeaveFunc();
 
-            if(!this.block.haveReturnStmt()){//检查return的缺失
-                addError(this.block.GetRbraceLineNumber(),"g");
+            // 缺失 return（g）
+            if (!this.block.haveReturnStmt()) {
+                addError(this.block.GetRbraceLineNumber(), "g");
             }
+
             SymbolManager.GoToFatherSymbolTable();
-            // IR：离开当前函数
-            IrBuilder.leaveFunction();
-        }
-
-
-        else{//void类型函数
-            this.symbol=new FuncSymbol(symbolName,"VoidFunc");
+        } else {
+            // ===== void 函数 =====
+            this.symbol = new FuncSymbol(symbolName, "VoidFunc");
             SymbolManager.AddSymbol(this.symbol, this.ident.GetTokenLineNumber());
 
+            SymbolManager.CreateSonSymbolTable();
 
-            String funcName = ident.GetTokenValue();          // 函数名
-            // IR：进入一个新函数（createFunction + entry 基本块）
-            IrBuilder.enterFunction("void", funcName);
-
-
-            //因为函数形参表的作用域是函数名作用域的子作用域
-            SymbolManager.CreateSonSymbolTable();//所以创建子符号表并进入子符号表
-            if(this.funcFParams!=null){//有参数
+            if (this.funcFParams != null) {
                 this.funcFParams.visit();
                 this.symbol.SetFormalParamList(this.funcFParams.GetFormalParamList());
             }
+
             SymbolManager.EnterFunc("void");
-
-
 
             block.visit();
 
-
-
-
             SymbolManager.LeaveFunc();
             SymbolManager.GoToFatherSymbolTable();
-            // 如果最后一个语句不是 return，就补一条 ret void
+        }
+    }
+
+    private void visitIR() {
+        String funcName = ident.GetTokenValue();
+
+        // 第二遍：不再 AddSymbol，不再 CreateSonSymbolTable，只复用第一遍的符号表树
+        // 进入函数参数/局部作用域（第一遍已经 Create 过）
+        SymbolManager.GoToSonSymbolTable();
+
+        if (this.funcType.GetFuncType().equals("int")) {
+            // ===== IR：进入新函数 =====
+            IrBuilder.enterFunction("i32", funcName);
+
+            // 为了兼容你项目里其他节点可能会读 GetFuncType，这里仍设置一下
+            SymbolManager.EnterFunc("int");
+
+            if (this.funcFParams != null) {
+                this.funcFParams.visit(); // IR 阶段：FuncFParam.visit 会只生成参数 IR
+            }
+
+            block.visit();
+
+            SymbolManager.LeaveFunc();
+
+            // 正确程序一般不会缺 return；这里兜底，保证 LLVM 结构完整
+            if (!this.block.haveReturnStmt()) {
+                IrBasicBlock cur = IrBuilder.getCurrentBlock();
+                if (cur != null) {
+                    cur.addInstruction("ret i32 0");
+                }
+            }
+
+            // 退出函数作用域
+            SymbolManager.GoToFatherSymbolTable();
+
+            // ===== IR：离开函数 =====
+            IrBuilder.leaveFunction();
+        } else {
+            // ===== void 函数 =====
+            IrBuilder.enterFunction("void", funcName);
+
+            SymbolManager.EnterFunc("void");
+
+            if (this.funcFParams != null) {
+                this.funcFParams.visit();
+            }
+
+            block.visit();
+
+            SymbolManager.LeaveFunc();
+
+            // 如果最后没 return，补 ret void（void 函数允许省略 return）
             if (!this.block.haveReturnStmt()) {
                 IrBasicBlock cur = IrBuilder.getCurrentBlock();
                 if (cur != null) {
                     cur.addInstruction("ret void");
                 }
             }
-            // IR：离开当前函数
+
+            SymbolManager.GoToFatherSymbolTable();
             IrBuilder.leaveFunction();
         }
     }
+
 
     public FuncDef(){
         super(SyntaxType.FUNC_DEF);

@@ -97,59 +97,35 @@ public class ConstDef extends Node{
 
 
 
-    //ConstDef → Ident [ '[' ConstExp ']' ] '=' ConstInitVal
     @Override
     public void visit() {
+        // 两阶段：第一遍语义/符号表，第二遍 IR
+        if (midend.MidEnd.isSemantic()) {
+            visitSemantic();
+        } else {
+            visitIR();
+        }
+    }
+
+    private void visitSemantic() {
         String symbolName = ident.GetTokenValue();
         ArrayList<Integer> initValueList = new ArrayList<>();
-        // === 数组 const ===
-        if (constExp != null) {
+
+        // 语义阶段：计算常量值/数组长度，写入符号表；绝不生成 IR
+        if (constExp != null) { // const 数组
             constExp.visit();
             constInitVal.visit();
             initValueList = constInitVal.GetInitValueList();
-            int len = constExp.GetValue(); // 维度，题目保证是常量表达式
 
+            int len = constExp.GetValue(); // 题目保证是常量表达式
             ValueSymbol symbol = new ValueSymbol(symbolName, "ConstIntArray");
             symbol.SetIsConst(true);
             symbol.SetArrayLength(len);
             symbol.SetValueList(initValueList);
             this.symbol = symbol;
-            SymbolManager.AddSymbol(this.symbol, ident.GetTokenLineNumber());
 
-            // 全局 const 数组：生成全局 constant
-            if (symbol.IsGlobal()) {
-                IrModule module = IrFactory.getModule();
-                StringBuilder elems = new StringBuilder();
-                for (int i = 0; i < len; i++) {
-                    if (i > 0) elems.append(", ");
-                    int v = (i < initValueList.size()) ? initValueList.get(i) : 0;
-                    elems.append("i32 ").append(v);
-                }
-                String ir = "@" + symbolName + " = constant [" + len + " x i32] [" + elems + "]";
-                module.addGlobalDef(ir);
-            }
-            // 局部 const 数组：在当前基本块分配并初始化
-            else {
-                IrBasicBlock block = IrBuilder.getCurrentBlock();
-                if (block != null) {
-                    String addr = "%" + symbolName;
-                    // 分配 [len x i32] 的局部数组
-                    block.addInstruction(addr + " = alloca [" + len + " x i32]");
-                    // 用编译期常量初始化每个元素
-                    for (int i = 0; i < len; i++) {
-                        String gep = IrFactory.getInstance().newTemp();
-                        block.addInstruction(
-                                gep + " = getelementptr [" + len + " x i32], [" + len + " x i32]* " + addr +
-                                        ", i32 0, i32 " + i
-                        );
-                        int v = (i < initValueList.size()) ? initValueList.get(i) : 0;
-                        block.addInstruction("store i32 " + v + ", i32* " + gep);
-                    }
-                }
-            }
-        }
-        //不是数组
-        else {
+            SymbolManager.AddSymbol(this.symbol, ident.GetTokenLineNumber());
+        } else { // const 标量
             constInitVal.visit();
             initValueList = constInitVal.GetInitValueList();
 
@@ -157,14 +133,72 @@ public class ConstDef extends Node{
             symbol.SetIsConst(true);
             symbol.SetValueList(initValueList);
             this.symbol = symbol;
-            SymbolManager.AddSymbol(this.symbol, ident.GetTokenLineNumber());
 
-            // 全局 const 标量 IR
-            if (SymbolManager.GetFuncType().equals("")
-                    && initValueList != null && !initValueList.isEmpty()) {
-                int v = initValueList.get(0);
+            SymbolManager.AddSymbol(this.symbol, ident.GetTokenLineNumber());
+        }
+    }
+
+    private void visitIR() {
+        String symbolName = ident.GetTokenValue();
+
+        // 第二遍 IR：复用第一遍创建的 symbol（同一棵 AST），不要再 AddSymbol
+        ValueSymbol vSym = (this.symbol instanceof ValueSymbol) ? (ValueSymbol) this.symbol : null;
+        if (vSym == null) {
+            // 兜底：从符号表查
+            midend.Symbol.Symbol s = SymbolManager.GetSymbol(symbolName);
+            if (s instanceof ValueSymbol) vSym = (ValueSymbol) s;
+        }
+        if (vSym == null) return;
+
+        // const 数组
+        if (constExp != null || (vSym.GetSymbolType() != null && vSym.GetSymbolType().endsWith("Array"))) {
+            int len = vSym.GetArrayLength();
+            ArrayList<Integer> initList = vSym.GetValueList();
+            if (initList == null) initList = new ArrayList<>();
+
+            // 全局 const 数组：生成全局 constant
+            if (vSym.IsGlobal() || SymbolManager.IsGlobal()) {
                 IrModule module = IrFactory.getModule();
-                module.addGlobalDef("@" + symbolName + " = constant i32 " + v);
+                String irName = "@" + symbolName;
+                vSym.SetIrName(irName);
+
+                StringBuilder elems = new StringBuilder();
+                for (int i = 0; i < len; i++) {
+                    if (i > 0) elems.append(", ");
+                    int v = (i < initList.size()) ? initList.get(i) : 0;
+                    elems.append("i32 ").append(v);
+                }
+                module.addGlobalDef(irName + " = constant [" + len + " x i32] [" + elems + "]");
+            }
+            // 局部 const 数组：alloca + store 初始化
+            else {
+                IrBasicBlock block = IrBuilder.getCurrentBlock();
+                if (block != null) {
+                    String addr = IrFactory.getInstance().newTemp();
+                    vSym.SetIrName(addr);
+
+                    block.addInstruction(addr + " = alloca [" + len + " x i32]");
+                    for (int i = 0; i < len; i++) {
+                        String gep = IrFactory.getInstance().newTemp();
+                        block.addInstruction(
+                                gep + " = getelementptr [" + len + " x i32], [" + len + " x i32]* " + addr +
+                                        ", i32 0, i32 " + i
+                        );
+                        int v = (i < initList.size()) ? initList.get(i) : 0;
+                        block.addInstruction("store i32 " + v + ", i32* " + gep);
+                    }
+                }
+            }
+        }
+        // const 标量：只需要为全局 const 生成 constant 定义
+        else {
+            ArrayList<Integer> initList = vSym.GetValueList();
+            if ((vSym.IsGlobal() || SymbolManager.IsGlobal()) && initList != null && !initList.isEmpty()) {
+                int v = initList.get(0);
+                IrModule module = IrFactory.getModule();
+                String irName = "@" + symbolName;
+                vSym.SetIrName(irName);
+                module.addGlobalDef(irName + " = constant i32 " + v);
             }
         }
     }

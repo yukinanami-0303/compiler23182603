@@ -18,6 +18,10 @@ public class MidEnd {
     /** 第一遍：语义 + 建符号表（不生成 IR） */
     public static void GenerateSymbolTable() {
         phase = Phase.SEMANTIC;
+
+        // ✅ 必须先初始化符号表根节点和当前指针，否则 CreateSonSymbolTable 会 NPE
+        SymbolManager.Init();
+
         rootNode = GetAstTree();
         rootNode.visit();
     }
@@ -26,15 +30,14 @@ public class MidEnd {
     public static void GenerateLLVMIR() {
         phase = Phase.IR;
 
-        // 1) 重置 IR 全局状态：module、编号计数器、builder 上下文等
+        // 1) 重置 IR 全局状态
         IrGenerator.reset();
 
-        // 2) 第二遍会复用第一遍建立好的符号表树：
-        //    必须把 currentSymbolTable 拉回 root，并复位每个 SymbolTable 的 son index 游标
+        // 2) 复用第一遍建立好的符号表树：回到 root，并复位子表遍历游标
         SymbolManager.GoBackToRootSymbolTable();
         SymbolManager.ResetSonTableIterators();
 
-        // 3) 再走一遍 AST：这一次各节点的 visit 才应该生成 IR
+        // 3) 再走一遍 AST：这一次各节点的 visit 只生成 IR
         if (rootNode == null) {
             rootNode = GetAstTree();
         }

@@ -73,48 +73,68 @@ public class FuncFParam extends Node{
             }
         }
     }
-    //FuncFParam → BType Ident ['[' ']']
+    // FuncFParam → BType Ident ['[' ']']
     @Override
-    public void visit(){
+    public void visit() {
+        if (midend.MidEnd.isSemantic()) {
+            visitSemantic();
+        } else {
+            visitIR();
+        }
+    }
+
+    private void visitSemantic() {
         String symbolName = ident.GetTokenValue();
         ValueSymbol vSym;
 
         if (this.lbrackToken != null) { // 数组形参
             vSym = new ValueSymbol(symbolName, "IntArray");
             vSym.SetIsArrayParam(true);
-
-        } else {                        // 普通 int 形参
+        } else { // 普通 int 形参
             vSym = new ValueSymbol(symbolName, "Int");
         }
+
         this.symbol = vSym;
         SymbolManager.AddSymbol(this.symbol, ident.GetTokenLineNumber());
+    }
+
+    private void visitIR() {
+        String symbolName = ident.GetTokenValue();
+
+        // 第二遍：复用第一遍创建的 symbol（不再 AddSymbol）
+        ValueSymbol vSym = this.symbol;
+        if (vSym == null) {
+            midend.Symbol.Symbol s = SymbolManager.GetSymbol(symbolName);
+            if (s instanceof ValueSymbol) vSym = (ValueSymbol) s;
+        }
+        if (vSym == null) return;
 
         // ===== IR: 形参加入当前函数 =====
         IrFunction func = IrBuilder.getCurrentFunction();
         IrBasicBlock entry = IrBuilder.getCurrentBlock();
-        if (func != null && entry != null) {
-            String irParamName = "%arg." + symbolName;
-            vSym.SetIrParamName(irParamName);   // 仍然记录形参寄存器名
+        if (func == null || entry == null) return;
 
-            if (this.lbrackToken != null) {
-                // 数组形参：参数类型 i32*
-                func.addParam("i32*", irParamName);
-                // 数组形参本身就是 i32*，后续 LVal 会用 irParamName 做 GEP
+        String irParamName = "%arg." + symbolName;
+        vSym.SetIrParamName(irParamName);
 
-            } else {
-                // 普通 int 形参
-                func.addParam("i32", irParamName);
+        if (this.lbrackToken != null) {
+            // 数组形参：参数类型 i32*
+            func.addParam("i32*", irParamName);
+            // 数组形参本身就是 i32*，后续 LVal 直接用 irParamName 做 GEP
+        } else {
+            // 普通 int 形参
+            func.addParam("i32", irParamName);
 
-                // 为该形参分配一个统一的栈地址名（比如 %t20）
-                String addr = IrFactory.getInstance().newTemp();
-                vSym.SetIrName(addr);
+            // 为该形参分配一个栈地址
+            String addr = IrFactory.getInstance().newTemp();
+            vSym.SetIrName(addr);
 
-                // 在 entry 里分配和初始化
-                entry.addInstruction(addr + " = alloca i32");
-                entry.addInstruction("store i32 " + irParamName + ", i32* " + addr);
-            }
+            // 在 entry 里分配和初始化
+            entry.addInstruction(addr + " = alloca i32");
+            entry.addInstruction("store i32 " + irParamName + ", i32* " + addr);
         }
     }
+
 
     public Symbol GetSymbol(){
         return this.symbol;
