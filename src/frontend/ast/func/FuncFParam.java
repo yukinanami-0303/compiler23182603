@@ -120,6 +120,7 @@ public class FuncFParam extends Node{
         if (this.lbrackToken != null) {
             // 数组形参：参数类型 i32*
             func.addParam("i32*", irParamName);
+            vSym.SetIrName(irParamName);
             // 数组形参本身就是 i32*，后续 LVal 直接用 irParamName 做 GEP
         } else {
             // 普通 int 形参

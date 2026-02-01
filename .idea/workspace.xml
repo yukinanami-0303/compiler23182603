@@ -8,11 +8,10 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/frontend/ast/def/ConstDef.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/def/ConstDef.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/frontend/ast/def/VarDef.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/def/VarDef.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/frontend/ast/func/FuncDef.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/func/FuncDef.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/frontend/ast/func/FuncFParam.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/func/FuncFParam.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/frontend/ast/func/MainFuncDef.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/func/MainFuncDef.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/frontend/ast/stmt/Stmt.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/frontend/ast/stmt/Stmt.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/midend/MidEnd.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/midend/MidEnd.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/testfile.txt" beforeDir="false" afterPath="$PROJECT_DIR$/testfile.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -153,7 +152,14 @@
       <option name="project" value="LOCAL" />
       <updated>1767531083744</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="Init">
+      <created>1767534902650</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1767534902650</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">

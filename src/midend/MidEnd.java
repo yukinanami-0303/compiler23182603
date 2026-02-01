@@ -4,7 +4,9 @@ import frontend.ast.Node;
 import midend.Ir.IrGenerator;
 import midend.Symbol.SymbolManager;
 
+import static OutputHelper.OutputHelper.write;
 import static frontend.Parser.GetAstTree;
+import static midend.Symbol.SymbolManager.GetSymbolTable;
 
 public class MidEnd {
     public enum Phase { SEMANTIC, IR }
@@ -19,25 +21,28 @@ public class MidEnd {
     public static void GenerateSymbolTable() {
         phase = Phase.SEMANTIC;
 
-        // ✅ 必须先初始化符号表根节点和当前指针，否则 CreateSonSymbolTable 会 NPE
+        // ✅ 必须初始化符号表
         SymbolManager.Init();
 
         rootNode = GetAstTree();
         rootNode.visit();
+
+        // ✅ 把符号表内容写到 symbol.txt（Compiler 已经 initialize("symbol.txt")）
+        write(GetSymbolTable().OutputSymbolTable());
     }
 
-    /** 第二遍：生成 IR（假设已无语义错误） */
+    /** 第二遍：生成 IR（假设无语义错误） */
     public static void GenerateLLVMIR() {
         phase = Phase.IR;
 
-        // 1) 重置 IR 全局状态
+        // ✅ 清空 IR 全局状态
         IrGenerator.reset();
 
-        // 2) 复用第一遍建立好的符号表树：回到 root，并复位子表遍历游标
+        // ✅ 复用第一遍符号表树：回到 root，并复位子表遍历游标
         SymbolManager.GoBackToRootSymbolTable();
         SymbolManager.ResetSonTableIterators();
 
-        // 3) 再走一遍 AST：这一次各节点的 visit 只生成 IR
+        // ✅ 复用同一棵 AST（不要重新 GetAstTree() 生成新对象）
         if (rootNode == null) {
             rootNode = GetAstTree();
         }

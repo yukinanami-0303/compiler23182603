@@ -144,7 +144,6 @@ public class ConstDef extends Node{
         // 第二遍 IR：复用第一遍创建的 symbol（同一棵 AST），不要再 AddSymbol
         ValueSymbol vSym = (this.symbol instanceof ValueSymbol) ? (ValueSymbol) this.symbol : null;
         if (vSym == null) {
-            // 兜底：从符号表查
             midend.Symbol.Symbol s = SymbolManager.GetSymbol(symbolName);
             if (s instanceof ValueSymbol) vSym = (ValueSymbol) s;
         }
@@ -156,8 +155,8 @@ public class ConstDef extends Node{
             ArrayList<Integer> initList = vSym.GetValueList();
             if (initList == null) initList = new ArrayList<>();
 
-            // 全局 const 数组：生成全局 constant
-            if (vSym.IsGlobal() || SymbolManager.IsGlobal()) {
+            // ✅ 全局判断只用 vSym.IsGlobal()，不要用 SymbolManager.IsGlobal()
+            if (vSym.IsGlobal()) {
                 IrModule module = IrFactory.getModule();
                 String irName = "@" + symbolName;
                 vSym.SetIrName(irName);
@@ -169,12 +168,11 @@ public class ConstDef extends Node{
                     elems.append("i32 ").append(v);
                 }
                 module.addGlobalDef(irName + " = constant [" + len + " x i32] [" + elems + "]");
-            }
-            // 局部 const 数组：alloca + store 初始化
-            else {
+            } else {
+                // ✅ 局部 const 数组 alloca 名称恢复为 %变量名
                 IrBasicBlock block = IrBuilder.getCurrentBlock();
                 if (block != null) {
-                    String addr = IrFactory.getInstance().newTemp();
+                    String addr = "%" + symbolName;
                     vSym.SetIrName(addr);
 
                     block.addInstruction(addr + " = alloca [" + len + " x i32]");
@@ -193,7 +191,8 @@ public class ConstDef extends Node{
         // const 标量：只需要为全局 const 生成 constant 定义
         else {
             ArrayList<Integer> initList = vSym.GetValueList();
-            if ((vSym.IsGlobal() || SymbolManager.IsGlobal()) && initList != null && !initList.isEmpty()) {
+            // ✅ 同理：只依赖 vSym.IsGlobal()
+            if (vSym.IsGlobal() && initList != null && !initList.isEmpty()) {
                 int v = initList.get(0);
                 IrModule module = IrFactory.getModule();
                 String irName = "@" + symbolName;
@@ -202,6 +201,7 @@ public class ConstDef extends Node{
             }
         }
     }
+
 
 
 

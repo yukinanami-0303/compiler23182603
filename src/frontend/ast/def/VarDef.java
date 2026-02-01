@@ -252,7 +252,7 @@ public class VarDef extends Node{
             }
 
             // 顶层全局数组：@a = global [N x i32] [...]
-            if (vSym.IsGlobal() || SymbolManager.IsGlobal()) {
+            if (vSym.IsGlobal()) {
                 IrModule module = IrFactory.getModule();
                 String irName = "@" + symbolName;
                 vSym.SetIrName(irName);
@@ -314,7 +314,7 @@ public class VarDef extends Node{
         }
 
         // 全局标量：@g = global i32 init
-        if (vSym.IsGlobal() || SymbolManager.IsGlobal()) {
+        if (vSym.IsGlobal()) {
             IrModule module = IrFactory.getModule();
             String irName = "@" + symbolName;
             vSym.SetIrName(irName);
@@ -327,6 +327,7 @@ public class VarDef extends Node{
             module.addGlobalDef(irName + " = global i32 " + initVal);
             return;
         }
+
 
         // 普通局部标量：alloca + (可选) store 初始化
         IrBasicBlock block = IrBuilder.getCurrentBlock();

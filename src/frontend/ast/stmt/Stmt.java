@@ -696,6 +696,11 @@ public class Stmt extends Node{
      * 第二遍：只生成 IR，不再报错，不再 Create/AddSymbol
      */
     private void visitIR() {
+        IrBasicBlock cur = IrBuilder.getCurrentBlock();
+        if (cur != null && blockEndsWithTerminator(cur)) {
+            return;
+        }
+
         // LVal '=' Exp ';' 0
         if (this.Utype == 0) {
             IrBasicBlock block = IrBuilder.getCurrentBlock();
@@ -860,7 +865,10 @@ public class Stmt extends Node{
             IrBasicBlock block = IrBuilder.getCurrentBlock();
             if (block == null) return;
 
-            if (SymbolManager.GetFuncType().equals("void")) {
+            IrFunction func = IrBuilder.getCurrentFunction();
+            boolean isVoid = (func != null) && "void".equals(func.getRetType());
+
+            if (isVoid) {
                 block.addInstruction("ret void");
             } else {
                 if (this.exp7 != null) {
@@ -872,6 +880,8 @@ public class Stmt extends Node{
             }
             return;
         }
+
+
 
         // printf 8：只生成 IR（语义阶段已检查 l）
         IrBasicBlock block = IrBuilder.getCurrentBlock();
